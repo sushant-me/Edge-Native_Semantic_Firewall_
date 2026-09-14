@@ -30,3 +30,6 @@ venv/
 
 # Scratch
 scratch/
+
+# Tectonic/XeTeX build strays
+*-[0-9]_[0-9]*.png

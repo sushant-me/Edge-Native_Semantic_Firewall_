@@ -71,8 +71,10 @@ defence-in-depth stack, and that the evidence does not support using it as a sol
 
 ```
 paper/
-  main.pdf                    camera-ready manuscript (10 pp, IEEEtran conference)
-  main.tex                    LaTeX source
+  main.tex                    two-column camera-ready source (IEEEtran conference)
+  main.pdf                    compiled camera-ready — 10 pp
+  main_singlecolumn.tex       single-column source (12 pt, Times Roman)
+  main_singlecolumn.pdf       compiled single-column version — 15 pp
   results_macros.tex          generated numeric macros — do not edit by hand
   adv_table.tex               generated table body — do not edit by hand
   response_to_reviewers.md    point-by-point response to the two reviews
@@ -98,6 +100,29 @@ docs/
   FINDINGS.md                 extended analysis narrative
   DATA_SCHEMA.md              field-by-field documentation of the JSONL files
 ```
+
+### Two versions of the paper
+
+`main.tex` is the two-column camera-ready. `main_singlecolumn.tex` is the same
+manuscript in a single-column 12 pt layout, intended for review, for conversion to
+other formats, or for any venue that asks for a one-column submission. The two files
+differ only in the `\documentclass` line and the author block; everything else is
+shared.
+
+**Typeface.** IEEE requires a Times-family serif. Under XeTeX the legacy Type1 `ptm`
+family has no Unicode shapes, so those requests fall back to Latin Modern silently —
+which is what happened in the first build of this paper. Both files now load the
+OpenType clone explicitly:
+
+```latex
+\usepackage{fontspec}
+\setmainfont{TeXGyreTermesX}
+\usepackage{newtxmath}
+```
+
+`pdffonts paper/main.pdf` confirms the text is embedded as `TeXGyreTermesX`. Eight
+math-mode digits still resolve to Computer Modern because TeX Live ships no Termes
+math companion; the effect is not visible at body size.
 
 ---
 
@@ -134,7 +159,8 @@ python src/analyze.py \
 
 # 6. Paper
 python src/make_macros.py --metrics results/metrics.json --outdir paper
-cd paper && tectonic -X compile main.tex
+cd paper && tectonic -X compile main.tex                # two-column
+cd paper && tectonic -X compile main_singlecolumn.tex   # single-column
 ```
 
 `make help` lists these as targets.
