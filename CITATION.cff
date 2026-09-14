@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this code, corpus, or results, please cite the paper."
-title: "Edge-Native Semantic Firewall for Autonomous LLM Agents: Structured Chain-of-Thought Verification on a 600-Scenario Corpus"
+title: "Edge-Native Semantic Firewall for Autonomous LLM Agents: A Structured Chain-of-Thought Verification Framework"
 type: conference
 authors:
   - family-names: Poudel

@@ -1,6 +1,6 @@
 # Edge-Native Semantic Firewall for Autonomous LLM Agents
 
-**Structured Chain-of-Thought Verification on a 600-Scenario Corpus**
+**A Structured Chain-of-Thought Verification Framework**
 
 Sushant Poudel · Rakhee Pandey · Aashika Pandey
 Department of Computer Science and Engineering, Nepal Engineering College, Bhaktapur, Nepal
@@ -182,7 +182,7 @@ GitHub's **Cite this repository** button will produce a BibTeX entry.
 ```bibtex
 @inproceedings{poudel2026edgenative,
   title     = {Edge-Native Semantic Firewall for Autonomous {LLM} Agents:
-               Structured Chain-of-Thought Verification on a 600-Scenario Corpus},
+               A Structured Chain-of-Thought Verification Framework},
   author    = {Poudel, Sushant and Pandey, Rakhee and Pandey, Aashika},
   booktitle = {Department of Computer Science and Engineering, Nepal Engineering College},
   year      = {2026}

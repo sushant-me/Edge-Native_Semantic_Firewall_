@@ -1,7 +1,6 @@
 # Response to Reviewers
 
-**Manuscript:** *Edge-Native Semantic Firewall for Autonomous LLM Agents: Structured Chain-of-Thought Verification on a 600-Scenario Corpus*
-**Previous title:** *Edge-Native Semantic Firewall for Autonomous LLM Agents: A Structured Chain-of-Thought Verification Framework*
+**Manuscript:** *Edge-Native Semantic Firewall for Autonomous LLM Agents: A Structured Chain-of-Thought Verification Framework*
 
 ---
 
@@ -13,7 +12,7 @@ Both reviewers recommended Major Revision, and both converged on the same core o
 
 The results did not support the original claims, and we have rewritten the paper around what the measurements actually show. Concretely:
 
-- **"100% policy adherence" is gone**, from the abstract, the title framing, and the contributions. Decision accuracy against policy-derived ground truth is 66.3% for the proposed method.
+- **"100% policy adherence" is gone**, from the abstract and the contributions. Decision accuracy against policy-derived ground truth is 66.3% for the proposed method.
 - **Every quantitative claim in the paper is now a measured number** with the raw per-scenario output backing it.
 - **Three claims made in the previous version were falsified by the data and are now withdrawn in the text**, not quietly dropped: (i) the null-confidence behaviour under Rule A does not occur; (ii) the corpus figures previously reported were derived from a keyword evaluator whose vocabulary overlapped the model's, and no such figure survives; (iii) the "zero-network-latency security gateway" framing is replaced by measured latency and throughput.
 - The paper now reports a **result that contradicts our own design intuition**: structured output *without* a reasoning requirement is the *least* safe of the three conditions, approving 46.2% of proposals the policy would block or route to review — worse than unconstrained free-form text at 17.2%.
@@ -66,7 +65,7 @@ The terse condition is bit-stable; the two conditions that generate long outputs
 
 The JSON-only result is the single most important finding in the revision, and we did not anticipate it: constraining the output format without requiring the reasoning step produces the most permissive evaluator of the three, approving hard-denial commands such as `echo 'app ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers` at 95% confidence.
 
-**On the retitling request.** We adopted it in substance. The title now names the study's actual scope (*Structured Chain-of-Thought Verification on a 600-Scenario Corpus*), "100%" appears nowhere in the paper, and the abstract leads with the measured rates and the residual failures. We did not adopt the "preliminary architecture paper" framing, because the evaluation is now executed rather than pending.
+**On the retitling request.** This suggestion applied to option (b), which we did not take. Because the corpus was executed, the study is no longer a preliminary architecture proposal and the title keeps its original form. What we removed regardless is every unsupported claim: "100%" appears nowhere in the paper, the abstract leads with the measured rates and the residual failures, and the contributions list is rewritten around what was actually measured.
 
 ---
 
