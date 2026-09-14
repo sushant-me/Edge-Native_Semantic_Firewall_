@@ -1,0 +1,5 @@
+# Runtime dependencies for the evaluation harness and analysis.
+# The corpus generator, harness, and analysis otherwise use only the
+# Python standard library.
+requests>=2.31
+matplotlib>=3.8

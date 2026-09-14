@@ -1,0 +1,6 @@
+FROM /home/logic/research/work/models/Phi-3-mini-4k-instruct-q4.gguf
+PARAMETER num_ctx 4096
+PARAMETER temperature 0
+PARAMETER top_p 1
+PARAMETER top_k 1
+PARAMETER repeat_penalty 1.0

@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+# Binary artifacts
+*.pdf  binary
+*.png  binary
+*.gguf binary
+
+# Data files are evidence, not source; keep them out of language statistics
+*.jsonl linguist-generated=true

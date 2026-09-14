@@ -1,0 +1,32 @@
+# Model weights and Ollama store — fetch these, do not commit them
+*.gguf
+models/
+.ollama/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# LaTeX build artefacts
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.xdv
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Scratch
+scratch/
