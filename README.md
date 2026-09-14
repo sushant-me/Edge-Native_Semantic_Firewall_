@@ -71,6 +71,8 @@ defence-in-depth stack, and that the evidence does not support using it as a sol
 
 ```
 paper/
+  Edge-Native_Semantic_Firewall_ETFG2025.docx   Word version in the ETFG-2025 template
+  Edge-Native_Semantic_Firewall_ETFG2025.pdf    rendered preview of the Word version
   main.tex                    two-column camera-ready source (IEEEtran conference)
   main.pdf                    compiled camera-ready — 10 pp
   main_singlecolumn.tex       single-column source (12 pt, Times Roman)
@@ -96,6 +98,12 @@ results/
   metrics.json                every reported metric
   tables.md                   the same metrics as markdown tables
   figs/                       vector figures used by the manuscript
+docx/
+  latex_to_ir.py              LaTeX -> structured IR converter
+  build_docx.py               renders the IR into the ETFG-2025 Word template
+  paper_ir.json               the intermediate representation (all narrative text)
+  arch.tex, eq.tex            standalone sources for the two rendered graphics
+  arch.png, eq.png            high-resolution renders used in the Word file
 docs/
   FINDINGS.md                 extended analysis narrative
   DATA_SCHEMA.md              field-by-field documentation of the JSONL files
@@ -123,6 +131,37 @@ OpenType clone explicitly:
 `pdffonts paper/main.pdf` confirms the text is embedded as `TeXGyreTermesX`. Eight
 math-mode digits still resolve to Computer Modern because TeX Live ships no Termes
 math companion; the effect is not visible at body size.
+
+### Word version (ETFG-2025 template)
+
+`paper/Edge-Native_Semantic_Firewall_ETFG2025.docx` is the same manuscript in the
+**ETFG-2025 conference template** — two-column body, ETFG first-page header, IEEE
+copyright footer, and the template's own named styles (`paper title`, `Author`,
+`Abstract`, `Keywords`, `Heading 1`–`Heading 5`, `Body Text`, `bullets`,
+`figure caption`, `references`).
+
+It is built by editing a copy of the supplied template in place, so the page
+geometry, the continuous section breaks that produce the 1-column title block and
+the 2-column body, and the header/footer references are the template's own and not
+reconstructions.
+
+The template ships as **ISO/IEC 29500 Strict** OOXML, which the usual Python tooling
+cannot open. The build rewrites the Strict namespaces to Transitional first
+(`http://purl.oclc.org/ooxml/...` → `http://schemas.openxmlformats.org/...`), which
+preserves every style and section; converting via LibreOffice instead silently drops
+the column definitions.
+
+Rebuild it with:
+
+```bash
+python docx/latex_to_ir.py     # main.tex -> paper_ir.json   (run from docx/)
+python docx/build_docx.py      # paper_ir.json -> .docx
+```
+
+Nothing in the Word file is retyped. `latex_to_ir.py` carries the narrative across
+verbatim from `main.tex`, expanding the generated numeric macros and mapping inline
+markup onto Word runs; a completeness check confirms every heading, paragraph,
+bullet and reference from the source is present.
 
 ---
 

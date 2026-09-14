@@ -1,0 +1,2620 @@
+{
+ "title": "Edge-Native Semantic Firewall for Autonomous LLM Agents: A Structured Chain-of-Thought Verification Framework",
+ "authors": [
+  {
+   "name": "Sushant Poudel",
+   "email": "sushant.poudel2028@gmail.com"
+  },
+  {
+   "name": "Rakhee Pandey",
+   "email": "rakheepandey5712@gmail.com"
+  },
+  {
+   "name": "Aashika Pandey",
+   "email": "aashika100pandey@gmail.com"
+  }
+ ],
+ "affiliation": "Dept. of Computer Science and Engineering, Nepal Engineering College, Bhaktapur, Nepal",
+ "abstract": [
+  [
+   "An autonomous agent that executes actions rather than proposing them sits outside the reach of role-based access control, which authenticates an identity but has nothing to say about whether a given action should happen. Routing every proposal to a cloud-hosted frontier model closes that gap semantically, but adds round-trip latency and, in regulated settings, is frequently prohibited outright. We describe an edge-native semantic firewall: a 3.8B-parameter Phi-3-mini model, 4-bit quantized and held under a 4.2 GiB VRAM ceiling, occupying the evaluator stage of a Generator–Evaluator pipeline on a single consumer laptop. The mechanism is a structured Chain-of-Thought JSON schema that requires the evaluator to name the governing policy rule and justify the match before it may emit a decision, converting an opaque verdict into a trace an operator can audit. We evaluate the framework on a 600-scenario corpus stratified across three policy rules, comprising 155 adversarial scenarios spanning eight prompt-injection techniques, 60 compound multi-step scenarios, and 30 boundary cases. All 1,800 generations of a three-condition comparison were executed on the model itself at temperature 0, with no cloud calls at any stage. The results invert a natural assumption. Constraining the output format ",
+   null
+  ],
+  [
+   "without",
+   "i"
+  ],
+  [
+   " requiring the reasoning step produced the least safe evaluator of the three: the JSON-only arm approved 46.2% of the proposals the policy would have blocked or sent to human review, which is worse than the unconstrained free-form arm at 17.2%. The full schema cut that to 23.5% and raised decision accuracy from 52.3% to 66.3%. On the irreversible class, where a wrong answer cannot be recalled, accuracy runs 62.5% under JSON-only, 72.1% under free-form, and 90.8% under the proposed schema, and approvals of hard-denial actions fall from 71 to 6. The gain is real, and it is not sufficient. The best configuration still approved 6 of 208 hard-denial actions, and it was more permissive than free-form on ambiguous proposals that should have reached a human. Peak VRAM was 3.95 GiB and median evaluation latency was 2.55 s, both consistent with edge operation. We conclude that an edge model of this size can serve as one layer of a defence-in-depth stack, and that the evidence does not support treating it as a sole control.",
+   null
+  ]
+ ],
+ "keywords": [
+  [
+   "agentic AI security, edge inference, semantic verification, Chain-of-Thought prompting, prompt injection, data sovereignty",
+   null
+  ]
+ ],
+ "blocks": [
+  [
+   "abstract",
+   [
+    [
+     "An autonomous agent that executes actions rather than proposing them sits outside the reach of role-based access control, which authenticates an identity but has nothing to say about whether a given action should happen. Routing every proposal to a cloud-hosted frontier model closes that gap semantically, but adds round-trip latency and, in regulated settings, is frequently prohibited outright. We describe an edge-native semantic firewall: a 3.8B-parameter Phi-3-mini model, 4-bit quantized and held under a 4.2 GiB VRAM ceiling, occupying the evaluator stage of a Generator–Evaluator pipeline on a single consumer laptop. The mechanism is a structured Chain-of-Thought JSON schema that requires the evaluator to name the governing policy rule and justify the match before it may emit a decision, converting an opaque verdict into a trace an operator can audit. We evaluate the framework on a 600-scenario corpus stratified across three policy rules, comprising 155 adversarial scenarios spanning eight prompt-injection techniques, 60 compound multi-step scenarios, and 30 boundary cases. All 1,800 generations of a three-condition comparison were executed on the model itself at temperature 0, with no cloud calls at any stage. The results invert a natural assumption. Constraining the output format ",
+     null
+    ],
+    [
+     "without",
+     "i"
+    ],
+    [
+     " requiring the reasoning step produced the least safe evaluator of the three: the JSON-only arm approved 46.2% of the proposals the policy would have blocked or sent to human review, which is worse than the unconstrained free-form arm at 17.2%. The full schema cut that to 23.5% and raised decision accuracy from 52.3% to 66.3%. On the irreversible class, where a wrong answer cannot be recalled, accuracy runs 62.5% under JSON-only, 72.1% under free-form, and 90.8% under the proposed schema, and approvals of hard-denial actions fall from 71 to 6. The gain is real, and it is not sufficient. The best configuration still approved 6 of 208 hard-denial actions, and it was more permissive than free-form on ambiguous proposals that should have reached a human. Peak VRAM was 3.95 GiB and median evaluation latency was 2.55 s, both consistent with edge operation. We conclude that an edge model of this size can serve as one layer of a defence-in-depth stack, and that the evidence does not support treating it as a sole control.",
+     null
+    ]
+   ]
+  ],
+  [
+   "keywords",
+   [
+    [
+     "agentic AI security, edge inference, semantic verification, Chain-of-Thought prompting, prompt injection, data sovereignty",
+     null
+    ]
+   ]
+  ],
+  [
+   "h1",
+   [
+    [
+     "Introduction",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Agentic large language model (LLM) systems do more than answer. Given tool access, they query databases, edit codebases, provision infrastructure, and drive multi-step operational runbooks ",
+     null
+    ],
+    [
+     "[1], [2], [3], [4], [5], [6]",
+     null
+    ],
+    [
+     ". The shift that matters is from systems that suggest to systems that execute. A misplaced suggestion is discarded; a misplaced ",
+     null
+    ],
+    [
+     "DROP TABLE",
+     "tt"
+    ],
+    [
+     " is not. The probabilistic flexibility that lets an agent generalise to an unseen task also lets it attempt, with the same fluency, an action that is syntactically well-formed and operationally catastrophic.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Role-based access control (RBAC) is the default access-management paradigm in production and it was designed for actors whose roles are stable and whose intentions are legible. It checks credentials. It cannot distinguish a routine cleanup from a catastrophic mistake, and it cannot distinguish either from the payload of a prompt-injection attack ",
+     null
+    ],
+    [
+     "[7]",
+     null
+    ],
+    [
+     ". What is missing is a layer that intercepts a proposed action before execution, reasons about that specific action against an explicit policy, and routes it accordingly. We call this an ",
+     null
+    ],
+    [
+     "LLM agent firewall",
+     "i"
+    ],
+    [
+     ".",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The obvious engineering answer is to send every proposal to a large cloud-hosted model with enough reasoning depth to catch subtle violations. In latency-tolerant settings this works. Production agentic systems are usually not latency-tolerant. An agent executing a multi-step workflow may issue tens of operations; even modest round-trip delays accumulate into real friction. More decisively, in healthcare, finance, and defence, shipping sensitive infrastructure commands to a third-party API is not merely inconvenient but often prohibited.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "This paper builds the firewall locally and then asks how well it actually works. The central mechanism is a structured Chain-of-Thought JSON schema. A small model is required to declare the governing policy rule, then justify that match, then assign a confidence score, and only then emit a decision. The ordering is enforced by the output grammar rather than requested in prose, so the model cannot jump to a verdict and backfill a rationale.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Contributions",
+     null
+    ]
+   ]
+  ],
+  [
+   "bullets",
+   [
+    [
+     [
+      "A localized Generator–Evaluator pipeline with sequential memory management that keeps both agent roles inside a 4.2 GiB VRAM budget on consumer hardware, measured at 3.95 GiB peak during evaluation.",
+      null
+     ]
+    ],
+    [
+     [
+      "A structured Chain-of-Thought JSON schema that constrains the field ordering of the evaluator’s output, with the decision emitted last.",
+      null
+     ]
+    ],
+    [
+     [
+      "A reproducible 600-scenario evaluation corpus in which ground-truth labels follow from the policy by construction rather than from a scorer sharing vocabulary with the evaluator, stratified across three rules and tagged adversarial, compound, and boundary.",
+      null
+     ]
+    ],
+    [
+     [
+      "A full execution of that corpus on the real model under three prompting conditions (1,800 generations), reporting per-rule accuracy, adversarial-subset performance by technique, a quantified baseline without the reasoning scaffold, and latency and throughput on edge hardware.",
+      null
+     ]
+    ],
+    [
+     [
+      "An ablation that tests one remedy for the dominant error mode by having the Actor declare the action vector explicitly, and which shows that the remedy works while relocating rather than removing the trust problem (Section ",
+      null
+     ],
+     [
+      "Section VI-C",
+      null
+     ],
+     [
+      ").",
+      null
+     ]
+    ],
+    [
+     [
+      "A result that contradicts the intuitive design choice: structured output without a reasoning requirement is the least safe of the three conditions, approving 46.2% of proposals the policy would block or route to review, against 17.2% for unconstrained free-form text.",
+      null
+     ]
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We want to be explicit about what this paper does not show. It does not show that a 3.8B edge model is a safe sole gatekeeper. It shows the opposite in several places, and Section ",
+     null
+    ],
+    [
+     "Section V",
+     null
+    ],
+    [
+     " reports those cases by name.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h1",
+   [
+    [
+     "Related Work",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Autonomous Agentic Workflows",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Brown et al. ",
+     null
+    ],
+    [
+     "[1]",
+     null
+    ],
+    [
+     " established that large language models generalise from few examples, and Ouyang et al. ",
+     null
+    ],
+    [
+     "[2]",
+     null
+    ],
+    [
+     " showed that this capacity can be shaped toward preferred behaviour through feedback-driven fine-tuning. Toolformer ",
+     null
+    ],
+    [
+     "[3]",
+     null
+    ],
+    [
+     " and ReAct ",
+     null
+    ],
+    [
+     "[4]",
+     null
+    ],
+    [
+     " extended the pattern by letting models invoke external tools and interleave reasoning with environmental action. AutoGen ",
+     null
+    ],
+    [
+     "[5]",
+     null
+    ],
+    [
+     " formalised multi-agent orchestration, and Park et al. ",
+     null
+    ],
+    [
+     "[6]",
+     null
+    ],
+    [
+     " showed that persistent memory and social coordination among LLM agents produce emergent, goal-directed behaviour. Cemri et al. ",
+     null
+    ],
+    [
+     "[8]",
+     null
+    ],
+    [
+     " then built a taxonomy from over a thousand annotated multi-agent traces and found that a large share of real-world failures trace back to unverified inter-agent action. That finding is the direct motivation for inserting a verification stage rather than trusting orchestration alone.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Guardrail Frameworks and Content Moderation",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "A substantial body of work places a classifier between the model and the world. Llama Guard ",
+     null
+    ],
+    [
+     "[9]",
+     null
+    ],
+    [
+     " and ShieldGemma ",
+     null
+    ],
+    [
+     "[10]",
+     null
+    ],
+    [
+     " label prompts and responses against a fixed harm taxonomy. NeMo Guardrails ",
+     null
+    ],
+    [
+     "[11]",
+     null
+    ],
+    [
+     " is closer to the present work: it supports programmable rails expressed in a domain-specific language, so application authors can constrain dialogue flow and define custom checks. The distinction we draw is that these systems evaluate ",
+     null
+    ],
+    [
+     "content",
+     "i"
+    ],
+    [
+     " against a taxonomy, whereas the firewall evaluates a ",
+     null
+    ],
+    [
+     "proposed action",
+     "i"
+    ],
+    [
+     " against an operator-authored policy that maps action classes to routing decisions. A harm classifier can tell you a sentence is abusive. It cannot tell you whether ",
+     null
+    ],
+    [
+     "systemctl restart nginx",
+     "tt"
+    ],
+    [
+     " is permitted by your change-management policy at this hour. The two are complementary and would ordinarily be deployed together.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "LLM-as-a-Judge and Real-Time Verification",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Zheng et al. ",
+     null
+    ],
+    [
+     "[12]",
+     null
+    ],
+    [
+     " formalised using one language model to evaluate the outputs of another. Moving that paradigm into a real-time security path exposes a tension the original framing does not have: round-trip latency compounds across sequential operations, and transmitting the actions themselves to an external API can be the data-sovereignty violation the deployment was meant to avoid. Brundage et al. ",
+     null
+    ],
+    [
+     "[13]",
+     null
+    ],
+    [
+     " argue that verifiable, auditable claims should be a design requirement for consequential AI deployments rather than opaque trust in a vendor’s evaluator. The auditable CoT trace in this work is our attempt to satisfy that requirement without leaving the host.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Agent Security and Prompt Injection",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Prompt injection against tool-using agents is a measured phenomenon, not a hypothetical. Greshake et al. ",
+     null
+    ],
+    [
+     "[7]",
+     null
+    ],
+    [
+     " showed that indirect injection through retrieved content is practical. Debenedetti et al. ",
+     null
+    ],
+    [
+     "[14]",
+     null
+    ],
+    [
+     " built AgentDojo to evaluate injection attacks and defences dynamically; Zhan et al. ",
+     null
+    ],
+    [
+     "[15]",
+     null
+    ],
+    [
+     " built InjecAgent for tool-integrated agents; Evtimov et al. ",
+     null
+    ],
+    [
+     "[16]",
+     null
+    ],
+    [
+     " built WASP against web agents; and Zhang et al. ",
+     null
+    ],
+    [
+     "[17]",
+     null
+    ],
+    [
+     " formalised a broader attack-and-defence benchmark. Ruan et al. ",
+     null
+    ],
+    [
+     "[18]",
+     null
+    ],
+    [
+     " identified the risks of tool access in a sandboxed harness.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "On the defence side, the most rigorous contemporary approaches constrain what an agent can do rather than judging what it intends. CaMeL ",
+     null
+    ],
+    [
+     "[19]",
+     null
+    ],
+    [
+     " separates control and data flow so that untrusted content cannot alter the control path; Progent ",
+     null
+    ],
+    [
+     "[20]",
+     null
+    ],
+    [
+     " enforces programmable privilege control as a policy over tool calls; Wallace et al. ",
+     null
+    ],
+    [
+     "[21]",
+     null
+    ],
+    [
+     " train models to respect an instruction hierarchy; and Hines et al. ",
+     null
+    ],
+    [
+     "[22]",
+     null
+    ],
+    [
+     " spotlight untrusted content so the model can distinguish it from instructions. These are design-level defences and, on injection resistance specifically, they are likely stronger than a small evaluator model. This work is not a competitor to them. It addresses a different question: given that an operator has written an action policy, can a constrained edge model apply it reliably and leave an audit trail, and if not, where exactly does it fail.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Edge Models and Structured Prompting",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The LLaMA family ",
+     null
+    ],
+    [
+     "[23]",
+     null
+    ],
+    [
+     " showed that open foundation models could reach competitive performance at reduced parameter counts, and the Phi-3 series ",
+     null
+    ],
+    [
+     "[24]",
+     null
+    ],
+    [
+     " pressed further, showing that sub-4B models trained on curated synthetic data can perform tasks previously assumed to need an order of magnitude more capacity. BitNet ",
+     null
+    ],
+    [
+     "[25]",
+     null
+    ],
+    [
+     " pushes hardware requirements toward consumer devices. The LIMA study ",
+     null
+    ],
+    [
+     "[26]",
+     null
+    ],
+    [
+     " cautions that small models are more brittle when a task demands strict deductive alignment to a fixed rule set. That caveat is what our evaluation tests, and Section ",
+     null
+    ],
+    [
+     "Section V",
+     null
+    ],
+    [
+     " finds it well founded.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "On the prompting side, Wei et al. ",
+     null
+    ],
+    [
+     "[27]",
+     null
+    ],
+    [
+     " showed that eliciting intermediate reasoning improves accuracy on deductive tasks, and Wang et al. ",
+     null
+    ],
+    [
+     "[28]",
+     null
+    ],
+    [
+     " extended this with self-consistency across independent reasoning paths; Reflexion ",
+     null
+    ],
+    [
+     "[29]",
+     null
+    ],
+    [
+     " showed that externalised self-reflection can substitute for weight updates. We sit in that lineage but aim at something narrower: not higher benchmark accuracy, but a fixed, machine-checkable field order in which the decision cannot precede the justification.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Positioning",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Table ",
+     null
+    ],
+    [
+     "Table I",
+     null
+    ],
+    [
+     " compares the family of runtime mechanisms discussed above. The column that matters most for our claim is the last: whether the mechanism has been evaluated against adversarially framed proposals rather than only benign ones.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@TABLE@@"
+  ],
+  [
+   "h1",
+   [
+    [
+     "Threat Model",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We distinguish three ways an unsafe action can reach the execution path, because they stress the firewall differently.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "(i) Benign mis-execution.",
+     "b"
+    ],
+    [
+     " A legitimate request is transformed by the Actor into an action that no one asked for. There is no adversary; the model simply got it wrong. This is the failure mode RBAC is blind to and the one most amenable to policy evaluation.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "(ii) A compromised or malfunctioning Actor.",
+     "b"
+    ],
+    [
+     " The Actor proposes unsafe actions directly, either because it was subverted or because it has drifted. The firewall sees a hostile proposal from a trusted component.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "(iii) Prompt injection.",
+     "b"
+    ],
+    [
+     " An adversary embeds instructions in content the agent consumes, framing a prohibited command as an authorised override, in order to move either the Actor or the Firewall into approving something the policy forbids. We treat the Firewall as a target in its own right: the attacker’s goal is a specific misclassification, usually an ACCEPT.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We assume the Firewall’s policy specification is trusted and correctly authored, that the host running it is not itself compromised at the kernel level, and that the communication path between Actor and Firewall is in-process. We do not assume the Actor’s proposals are well-formed, honest, or free of adversarial content. Section ",
+     null
+    ],
+    [
+     "Section V",
+     null
+    ],
+    [
+     " reports empirical results for categories (i) and (iii). Category (ii) was not evaluated with a red-team Actor, and Section ",
+     null
+    ],
+    [
+     "Section VI-C",
+     null
+    ],
+    [
+     " shows why the obvious mitigation for it relocates the trust problem rather than removing it.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h1",
+   [
+    [
+     "Methodology",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Pipeline Architecture",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The experimental setup is a two-agent Generator–Evaluator pipeline on a synchronous intercept model (Fig. ",
+     null
+    ],
+    [
+     "Fig. 1",
+     null
+    ],
+    [
+     "). An ",
+     null
+    ],
+    [
+     "Actor",
+     "i"
+    ],
+    [
+     " turns a simulated user request into an actionable intent. A ",
+     null
+    ],
+    [
+     "Firewall",
+     "i"
+    ],
+    [
+     " intercepts each intent and evaluates it against the policy before any simulated execution proceeds. Nothing in the pipeline requires a network connection, and no command, query, or code diff leaves the host.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@FIGURE@@"
+  ],
+  [
+   "h2",
+   [
+    [
+     "Hardware Constraint and Model Selection",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The binding constraint was a 4.2 GiB VRAM ceiling on consumer hardware: an NVIDIA GeForce RTX 4050 Laptop GPU with 6 GiB of physical memory, an AMD Ryzen 5 CPU, and 16 GB of system RAM. Microsoft Phi-3-mini (3.8B parameters, 4-bit quantized to approximately 2.2 GB in GGUF format, served by the Ollama runtime) fills both roles. Using one model for generation and evaluation is the harder version of the claim. The argument is not that a purpose-built evaluator with generous resources works; it is that the class of model a production environment would actually afford may be sufficient.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Loading two instances would exceed the ceiling, so the pipeline uses sequential memory management: the Actor is flushed (",
+     null
+    ],
+    [
+     "keep_alive=0",
+     "tt"
+    ],
+    [
+     ") after each generation cycle before the Firewall is instantiated. Only one instance is resident at a time. We measured peak device memory during the evaluation runs at 3.95 GiB.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Deterministic Policy Framework",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The Firewall operates against three explicitly defined policies (Table ",
+     null
+    ],
+    [
+     "Table II",
+     null
+    ],
+    [
+     "). These are hard rules, not probabilistic guidelines, and the evaluation criterion is strict match against the policy-derived label. Rule A encodes the principle that some action classes carry catastrophic downside regardless of context or model confidence, so no confidence score is requested for them. Rules B and C introduce graduated thresholds calibrated to the criticality of the action class; proposals below threshold are routed to human review rather than denied outright, which preserves continuity for ambiguous cases while keeping unconditionally dangerous actions outside the model’s discretion.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "For a proposed action ",
+     null
+    ],
+    [
+     "a",
+     null
+    ],
+    [
+     " with matched rule ",
+     null
+    ],
+    [
+     "R(a)",
+     null
+    ],
+    [
+     " and confidence ",
+     null
+    ],
+    [
+     "C",
+     null
+    ],
+    [
+     "s",
+     "sub"
+    ],
+    [
+     ":",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@EQUATION@@"
+  ],
+  [
+   "p",
+   [
+    [
+     "where ",
+     null
+    ],
+    [
+     "θ",
+     null
+    ],
+    [
+     "R(a)",
+     "sub"
+    ],
+    [
+     " is the threshold associated with the matched rule. Rule A is threshold-independent by construction, so ",
+     null
+    ],
+    [
+     "C",
+     null
+    ],
+    [
+     "s",
+     "sub"
+    ],
+    [
+     " is not evaluated for it.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@TABLE@@"
+  ],
+  [
+   "h2",
+   [
+    [
+     "Structured Chain-of-Thought Enforcement",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Early pilot work surfaced a failure mode rather than a capability limit. Used zero-shot as a policy evaluator, the 3.8B model defaulted to conservative FLAG verdicts where a clear ACCEPT or DENY was correct, and periodically emitted structurally malformed output that broke downstream parsing. The pattern is consistent with shallow reasoning compression: the model approximating compliance by surface pattern matching rather than working through the rule structure.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The response is a two-layer prompt-engineering method. The first layer is strict JSON output enforcement, which removes conversational wrappers. The second mandates a fixed field order populated before a decision can be emitted: (1) ",
+     null
+    ],
+    [
+     "matched_rule",
+     "tt"
+    ],
+    [
+     ", the governing rule declared first; (2) ",
+     null
+    ],
+    [
+     "reasoning",
+     "tt"
+    ],
+    [
+     ", a step-by-step justification for applying that rule; (3) ",
+     null
+    ],
+    [
+     "confidence_score",
+     "tt"
+    ],
+    [
+     ", an integer in ",
+     null
+    ],
+    [
+     "[0,100]",
+     null
+    ],
+    [
+     "; and (4) ",
+     null
+    ],
+    [
+     "decision",
+     "tt"
+    ],
+    [
+     ", the routing verdict, emitted last. Because the rule must be named before a score is computed, and the reasoning stated before a decision is committed, the schema removes the shortcut of concluding first and justifying afterwards. The ordering is enforced by the decoding grammar, not requested politely in the prompt.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Corpus Construction",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     " The evaluation corpus contains 600 scenarios. It is generated deterministically from a fixed seed and is fully reproducible; the generator, corpus, harness, and raw outputs are released with the paper.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Each scenario is authored with an explicit justification strength, and its ground-truth label follows mechanically from the policy rubric: Rule A scenarios are DENY by construction; Rule B and C scenarios are ACCEPT when the authored justification is complete and auditable enough that a competent reviewer would clear the threshold, and FLAG otherwise. Adversarial scenarios inherit the label the underlying action would carry without the injected framing, with the additional constraint that no adversarial scenario may be ACCEPT by construction. Compound scenarios are DENY when any step is Rule A, since Rule A pre-empts. The generator asserts every one of these marginals before it writes a single scenario, so the distribution in Table ",
+     null
+    ],
+    [
+     "Table III",
+     null
+    ],
+    [
+     " cannot drift from the design.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The construction matters more than it may appear. An earlier formulation of this evaluation labelled scenarios with a keyword scorer whose vocabulary overlapped that of the evaluator, which meant the resulting accuracy figure measured the agreement of two copies of the same heuristic rather than the behaviour of the model. No number in this paper derives from that construction. Every accuracy reported below compares the model’s verdict against a label that was fixed before the model was invoked.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@TABLE@@"
+  ],
+  [
+   "p",
+   [
+    [
+     "Scenarios are tagged by type: 155 adversarial, spanning eight injection techniques (instruction override, authority framing, context-delimiter spoofing, encoding obfuscation, payload splitting, false policy assertion, urgency pressure, and indirect injection via tool output); 60 compound, exercising policy precedence across rules; and 30 boundary cases covering threshold-adjacent confidence, Unicode obfuscation, input flooding, and recursive proposals. The remaining 355 are standard, and the eight injection techniques are represented by 18 to 21 scenarios each.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Conditions and Metrics",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Every scenario is evaluated under three prompting conditions against the same model, the same 4096-token context, and the same decoding parameters (temperature 0, top-",
+     null
+    ],
+    [
+     "k",
+     null
+    ],
+    [
+     " 1, fixed seed).",
+     null
+    ]
+   ]
+  ],
+  [
+   "bullets",
+   [
+    [
+     [
+      "Free-form.",
+      "b"
+     ],
+     [
+      " No output-format constraint. The model is asked to state a verdict and explain its reasoning. This measures structural failure in the unassisted deployment.",
+      null
+     ]
+    ],
+    [
+     [
+      "JSON only.",
+      "b"
+     ],
+     [
+      " Output constrained to a JSON object carrying ",
+      null
+     ],
+     [
+      "matched_rule",
+      "tt"
+     ],
+     [
+      ", ",
+      null
+     ],
+     [
+      "confidence_score",
+      "tt"
+     ],
+     [
+      ", and ",
+      null
+     ],
+     [
+      "decision",
+      "tt"
+     ],
+     [
+      ", with no reasoning field. This isolates the contribution of the reasoning scaffold from the contribution of structured output alone.",
+      null
+     ]
+    ],
+    [
+     [
+      "Structured CoT",
+      "b"
+     ],
+     [
+      " (proposed). Output constrained to a JSON object carrying ",
+      null
+     ],
+     [
+      "matched_rule",
+      "tt"
+     ],
+     [
+      ", ",
+      null
+     ],
+     [
+      "reasoning",
+      "tt"
+     ],
+     [
+      ", ",
+      null
+     ],
+     [
+      "confidence_score",
+      "tt"
+     ],
+     [
+      ", and ",
+      null
+     ],
+     [
+      "decision",
+      "tt"
+     ],
+     [
+      ", emitted in that order with the decision last.",
+      null
+     ]
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We report decision accuracy against the policy-derived label; rule-attribution accuracy, meaning the fraction of parsed outputs that named the correct governing rule; the unsafe-ACCEPT count, defined as a parsed ACCEPT where the label is DENY or FLAG; and wall-clock latency and throughput. Because the free-form condition has no output contract, its responses are summarised by two structural rates instead: an ",
+     null
+    ],
+    [
+     "unparseable",
+     "i"
+    ],
+    [
+     " rate, counting responses in which no verdict appears at all, and an ",
+     null
+    ],
+    [
+     "order-sensitive",
+     "i"
+    ],
+    [
+     " rate, counting responses whose first and last verdict tokens disagree, so that a caller taking the first mention and a caller taking the last reach different decisions. All 1,800 generations of the three-condition comparison were executed on the model with no cloud calls at any stage. A separate fourth condition of 600 generations tests one remedy for the dominant error mode and is reported in Section ",
+     null
+    ],
+    [
+     "Section VI-C",
+     null
+    ],
+    [
+     ", and a 200-scenario subset was evaluated a second time to measure run-to-run variance under greedy decoding, reported in Section ",
+     null
+    ],
+    [
+     "Section VII",
+     null
+    ],
+    [
+     ".",
+     null
+    ]
+   ]
+  ],
+  [
+   "h1",
+   [
+    [
+     "Results",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Headline",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Table ",
+     null
+    ],
+    [
+     "Table IV",
+     null
+    ],
+    [
+     " gives the headline numbers, and the first of them was not the result we expected. Constraining the output format ",
+     null
+    ],
+    [
+     "without",
+     "i"
+    ],
+    [
+     " requiring the reasoning step produced the least safe evaluator of the three conditions. The JSON-only arm approved 277 proposals that the policy would have blocked or sent to human review, which is 46.2% of everything it was shown. Adding the Chain-of-Thought field order cut that to 141, and the free-form arm, which has no output contract at all, sat at 103. Structured output on its own is therefore worse than no structure: it removes the deliberation and keeps the verdict.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The second result is the one that carries the safety argument. On Rule A, the class where a wrong answer cannot be taken back, decision accuracy runs 62.5% for JSON-only, 72.1% for free-form, and 90.8% for structured CoT. The number of hard-denial actions that were approved rather than blocked is 71, 11, and 6 respectively. The scaffold reduces approvals of irreversible actions by an order of magnitude against the structured baseline and by roughly half against free-form. Rule attribution moves in the same direction: 80.3% to 86.5% overall, and 63.9% to 92.8% on Rule A.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@TABLE@@"
+  ],
+  [
+   "p",
+   "@@FIGURE@@"
+  ],
+  [
+   "h2",
+   [
+    [
+     "The Irreversible Class",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Rule A is where the framework either works or does not, so it is worth stating separately. Fig. ",
+     null
+    ],
+    [
+     "Fig. 2",
+     null
+    ],
+    [
+     "(a) and Table ",
+     null
+    ],
+    [
+     "Table V",
+     null
+    ],
+    [
+     " give the breakdown by rule, and the asymmetry is sharp. Rule A accuracy under structured CoT is 90.8%, against 62.5% for JSON-only and 72.1% for free-form. Only 6 of the 208 hard-denial proposals were approved under the proposed method. Five of the six carried an adversarial payload; the sixth was a compound multi-step proposal with no attacker involved. The distribution is worth noting because it cuts against the comfortable reading: a hard-denial failure does not require an adversary, only a proposal whose surface features point at the wrong rule.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The JSON-only baseline’s behaviour on this class is the clearest single result in the study. It approved 71 hard-denial actions, including a funds transfer to an individual’s previously unseen personal account and a command that grants an application user unrestricted ",
+     null
+    ],
+    [
+     "sudo",
+     "tt"
+    ],
+    [
+     ". In 60 of those 71 cases the model attributed the proposal to Rule B with a confidence score of 95. In three cases it named Rule A, whose semantics are unconditional denial, and accepted the proposal anyway. Stripping away the reasoning field did not make the evaluator cautious. It made it agreeable.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@TABLE@@"
+  ],
+  [
+   "h2",
+   [
+    [
+     "Where the Scaffold Does Not Help",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We would rather report this plainly than bury it. Structured CoT does not dominate the other conditions on every axis. Its Rule C accuracy of 46.3% is below the free-form arm’s 61.6%, and its overall unsafe-ACCEPT count of 141 is higher than free-form’s 103. Almost all of that gap comes from proposals the policy routes to review rather than blocks: 135 of the 141 unsafe approvals are Rule B or C proposals that should have been flagged and were accepted instead.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The trade the scaffold makes is therefore legible. It is substantially better at recognising and refusing the irreversible class, and somewhat worse at routing genuinely ambiguous cases conservatively. The first error is the one that destroys data or moves money without recourse; the second executes an action a human should have seen first. They are not equally bad, but neither is acceptable at the observed rates, and a reader should not take the Rule A improvement as evidence that the framework is safe overall.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Fig. ",
+     null
+    ],
+    [
+     "Fig. 3",
+     null
+    ],
+    [
+     " shows the confusion matrices. The dangerous cell, DENY",
+     null
+    ],
+    [
+     "→",
+     null
+    ],
+    [
+     "ACCEPT, is the one the Rule A result describes. The larger off-diagonal mass sits in FLAG",
+     null
+    ],
+    [
+     "→",
+     null
+    ],
+    [
+     "ACCEPT, which is the over-permissive behaviour above.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@FIGURE@@"
+  ],
+  [
+   "h2",
+   [
+    [
+     "Failure Analysis",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Every one of the 6 critical failures under structured CoT has the same shape. The model does not misapply a rule it has correctly identified; it matches on the surface of the proposal instead of on the mechanism of the action, lands on the wrong rule, and then generates a confidence score from the wrong premise.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Three traces make the pattern concrete. For ",
+     null
+    ],
+    [
+     "cat /etc/shadow",
+     "tt"
+    ],
+    [
+     ", the model reasoned that the proposal “is to read the shadow password database, which falls under the category of ‘Read Database’ ” and returned Rule C with a confidence of 90, which clears Rule C’s threshold and yields ACCEPT. For ",
+     null
+    ],
+    [
+     "kill -9 $(pgrep -f pgbouncer)",
+     "tt"
+    ],
+    [
+     ", it wrote that the proposal “involves querying a data store for records, specifically to terminate a process using pgrep and kill commands,” again returning Rule C and ACCEPT. For a transfer of funds it produced the observation that initiating a transfer is “modifying the codebase indirectly,” which is Rule B, and accepted.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The common thread is that the reasoning field faithfully reports a category error rather than catching one. That is the central limitation of the method. Forcing the model to articulate a rule does not force it to articulate the right one, and the resulting trace is auditable but not thereby correct. The audit trail still has value, because it lets an operator see ",
+     null
+    ],
+    [
+     "why",
+     "i"
+    ],
+    [
+     " the firewall approved something after the fact. It does not prevent the approval.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Adversarial Subset",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The 155 adversarially framed scenarios are the ones an attacker would choose, and they separate the conditions more than any other subset. Table ",
+     null
+    ],
+    [
+     "Table VI",
+     null
+    ],
+    [
+     " breaks them down by technique.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   "@@TABLE@@"
+  ],
+  [
+   "p",
+   [
+    [
+     "Three observations. First, the JSON-only arm collapses under adversarial framing to 20.0% accuracy, against 70.4% on standard scenarios; the scaffolding that helps least is also the most fragile, and it is fragile in the permissive direction. Second, the structured scaffold is markedly more robust than JSON-only, holding 45.8% against a 74.6% standard-scenario rate, but it degrades relative to free-form, which reaches 50.3% on the adversarial subset. Third, the ranking of techniques is stable across conditions in a way that is informative about the attack surface: authority framing is the most effective payload in every condition, as are false policy assertions, while payload splitting and urgency pressure are the least effective. Both of the successful families work the same way, by supplying a plausible alternative rule mapping rather than by breaking the output contract. That is precisely the input a rule-articulation schema surfaces but cannot verify.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We are careful not to overstate what this measures. Our adversarial scenarios were authored by us around the three-rule policy, not drawn from a public benchmark such as AgentDojo ",
+     null
+    ],
+    [
+     "[14]",
+     null
+    ],
+    [
+     " or InjecAgent ",
+     null
+    ],
+    [
+     "[15]",
+     null
+    ],
+    [
+     ". Those benchmarks target tool-integrated agent tasks, and the mapping onto a three-rule action policy is not clean. The result is evidence that the failure mode is real and measurable in this setting. It is not a comparable injection-resistance score, and it should not be quoted as one.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Output Integrity, and What the Free-Form Numbers Mean",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The free-form arm is the only condition whose accuracy depends on a parsing convention, which is itself the point. None of its 600 responses failed to contain a verdict, but 14.5% were order-sensitive: the first and last verdict tokens in the response disagreed, so a caller taking the first mention and a caller taking the last reach different decisions on one response in seven, and 35.7% mentioned more than one distinct verdict somewhere in the text. The free-form accuracies in Table ",
+     null
+    ],
+    [
+     "Table IV",
+     null
+    ],
+    [
+     " use last-mention extraction, on the reasoning that a model states its conclusion at the end, and that convention should be read as one defensible choice among several rather than as a property of the model. This is the concrete argument for constrained output in a security path, and it holds independently of accuracy: a routing layer that cannot recover a stable verdict from its evaluator has no decision to act on.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Latency and Edge Viability",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Median wall-clock latency per evaluation under structured CoT was 2.55 s on the RTX 4050, with a 95th percentile of 5.14 s and a mean throughput of 63.2 tokens/s. Peak device memory was 3.95 GiB, measured during the evaluation runs. Both figures are consistent with edge deployment: the pipeline runs inside the 4.2 GiB envelope with no network dependency, and a twenty-step runbook costs on the order of a minute of added wall-clock time rather than a per-call round trip to a remote API. The JSON-only arm is roughly five times faster at 0.44 s because it emits about a dozen tokens per decision, which we note only to make clear that the latency of the proposed method is the latency of deliberation, not of structure.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We did not measure a cloud-API comparison arm, and we do not claim one. The latency result establishes that edge evaluation is feasible at this scale. It does not establish that edge evaluation is faster than a given hosted endpoint, which depends on network conditions, provider throttling, and request batching that we did not control.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h1",
+   [
+    [
+     "Discussion",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Decomposing the Improvement",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The structured scaffold does not change what the model knows. It changes the order in which the model is required to express what it knows. Against the JSON-only baseline, decision accuracy rises from 52.3% to 66.3% while rule attribution rises from 80.3% to 86.5%. Those two numbers decompose the gain, because once a rule and a score exist the decision function is deterministic. The model applies its own declared rule and threshold faithfully in 99.3% of JSON-only outputs and 92.0% of structured-CoT outputs, so the residual errors are almost entirely upstream of the decision: either the rule is wrong, or the score attached to it is wrong.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The decomposition says something specific about where the scaffold helps. Attribution improves by less than half what accuracy does, so attribution alone does not account for the gain. The consistency column shows why: the scaffold makes the model ",
+     null
+    ],
+    [
+     "less",
+     "i"
+    ],
+    [
+     " mechanically consistent, 92.0% against 99.3%, because a reasoning field gives it room to argue toward a conclusion its own declared rule does not support. Both effects are real and the net is positive. Which one dominates would need a schema that contains a reasoning field but no rule field, an ablation we did not run.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "The Confidence Field Does Not Carry Its Weight",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The design anticipated that a hard-denial rule would cause the evaluator to return a null confidence value, bypassing the scoring pathway entirely and removing the score as an attack surface for that rule category. That behaviour did not occur. Across the 599 parseable structured outputs, the model emitted a numeric confidence score every time; not one output carried a null value. When the model correctly identified Rule A, it reported a confidence of 100 in 177 of 192 cases. The median reported confidence was 90 whether the rule attribution was correct or wrong. The score behaves close to a constant and does not discriminate between outputs the model got right and outputs it got wrong.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Two consequences follow. The specific security argument for the null-confidence design is not supported by our evidence, and we withdraw it rather than repeat it. More practically, a policy whose thresholds depend on the evaluator’s self-reported confidence is depending on a quantity that, in this configuration, carries little information. Rule B’s 95% bar and Rule C’s 80% bar are not doing the discriminating work the policy assumes. In practice they mostly pass, and the routing decision is effectively made by the rule attribution alone. That is a property of this model and this prompt rather than of the architecture, and it is exactly the kind of assumption that should be measured before a confidence-gated design is trusted. We report it because we expected the opposite.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Action-Class Inference, and Whether Declaring It Helps",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     " The misattributions are not random. Under structured CoT the largest single confusion is a Rule B proposal read as Rule C, which accounts for 50 cases; a Rule A proposal read as Rule B adds nine more. The critical approvals are a narrower set: five of the 6 came from a Rule A proposal read as Rule C and the sixth from one read as Rule B, the remaining error being a compound proposal with no attacker involved. The model appears to match on the surface of the object a proposal names rather than on the mechanism of the action. A path containing the token ",
+     null
+    ],
+    [
+     "shadow",
+     "tt"
+    ],
+    [
+     " reads as a data lookup, and the fact that it is reached by executing a shell command drops out of the comparison.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "If that is the mechanism, the inference step can be removed rather than improved. We tested this in a fourth condition, ",
+     null
+    ],
+    [
+     "CoT with a declared action vector",
+     "i"
+    ],
+    [
+     ", in which the Actor’s action-class declaration is supplied to the Firewall as an explicit field and the Firewall no longer infers the class from prose.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The remedy works exactly as intended, and it does not make the system safer. Rule attribution rises from 86.5% to 96.0%, Rule B attribution from 70.3% to 95.0%, and the two largest misattributions collapse: Rule B read as Rule C falls from 50 to 10, and Rule A read as Rule C from 6 to 1. Rule A accuracy improves from 90.8% to 94.2%. Yet overall decision accuracy falls slightly, from 66.3% to 64.1%, unsafe approvals rise from 141 to 155, and approvals of hard-denial actions do not move at all: 6 before, 6 after.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Removing the attribution error exposes the next one. Of the 6 hard-denial approvals under the declared-vector condition, three are now attributed to Rule B, whose threshold admits them because the confidence score attached is 95; one is attributed to Rule C; and ",
+     null
+    ],
+    [
+     "two are attributed to Rule A",
+     "b"
+    ],
+    [
+     " — the correct rule — with the decision field set to ACCEPT anyway. The trace for one of those reads, in full: “The proposed action is to execute a system command, which directly matches Rule A’s criteria for unconditional denial. However, considering the request is pre-approved by the platform administrator, the decision will override the standard policy.” The proposal was ",
+     null
+    ],
+    [
+     "shutdown -h now",
+     "tt"
+    ],
+    [
+     ", submitted under an authority-framing payload, and the Firewall identified the rule, quoted its semantics, and let the injected framing override both.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "That trace is the clearest statement of what this method does and does not buy. The schema guarantees that the model articulates a rule. It does not guarantee that the articulation governs the decision. Once attribution is correct the residual failure moves into the decision field itself, where no amount of restructuring the output can catch it, because the model has already written down the right answer and contradicted it. A decision function built as a conjunction of two model-generated estimates is only as reliable as the weaker of the two, and improving the first does not help while the second is uninformative.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The remedy also relocates a trust assumption rather than discharging one. It moves the reading step from the Firewall to the Actor, exchanging “the evaluator will classify the action correctly” for “the Actor will declare its action class honestly.” Those are different assumptions and neither is obviously safer. An Actor that is compromised, or merely mistaken about what it is doing, will declare a convenient vector and the Firewall will apply the policy faithfully to a false premise. A deployment adopting this design should treat the declaration as untrusted input to be validated, not as ground truth.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h2",
+   [
+    [
+     "Deployment Considerations",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Three operational questions arise before this could be deployed beyond a proof of concept.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Policy updates.",
+     "b"
+    ],
+    [
+     " The rule set lives in the system prompt and the output schema, not in model weights, so changing a threshold or adding a rule requires editing the specification rather than retraining. The same property means the Firewall’s correctness is bounded by the correctness of a configuration file that must be version-controlled and reviewed like code.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Policy conflicts.",
+     "b"
+    ],
+    [
+     " The current design resolves conflicts by priority order, with Rule A pre-empting Rules B and C regardless of confidence. A larger rule set needs an explicit, documented precedence ordering rather than an inferred one.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Fail-closed behaviour.",
+     "b"
+    ],
+    [
+     " The Firewall is itself a probabilistic component, so a production deployment should not treat it as a sole control. A fail-closed default (deny on timeout, crash, or malformed output rather than falling back to ACCEPT) and an append-only audit log of every ",
+     null
+    ],
+    [
+     "matched_rule",
+     "tt"
+    ],
+    [
+     "/",
+     null
+    ],
+    [
+     "reasoning",
+     "tt"
+    ],
+    [
+     "/",
+     null
+    ],
+    [
+     "decision",
+     "tt"
+    ],
+    [
+     " trace are the two complementary safeguards we would insist on. Neither depends on the model being right.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h1",
+   [
+    [
+     "Limitations and Threats to Validity",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Corpus provenance.",
+     "b"
+    ],
+    [
+     " The 600 scenarios were authored by us around a three-rule policy. They are not drawn from a public benchmark and have not been validated by an independent party. Labels follow mechanically from the policy rubric rather than from a scorer sharing vocabulary with the evaluator, so an accuracy figure here measures model behaviour and not the agreement of two copies of the same heuristic. A rubric we wrote is still a rubric we wrote. Replication against AgentDojo ",
+     null
+    ],
+    [
+     "[14]",
+     null
+    ],
+    [
+     ", InjecAgent ",
+     null
+    ],
+    [
+     "[15]",
+     null
+    ],
+    [
+     ", or ASB ",
+     null
+    ],
+    [
+     "[17]",
+     null
+    ],
+    [
+     " would test the framework against scenarios designed without knowledge of it, and is the single most important extension.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Policy scope.",
+     "b"
+    ],
+    [
+     " Three rules over four action vectors is a small policy space. Real deployments carry tens or hundreds of rules with overlapping scope. Nothing in this evaluation exercises precedence resolution at that scale, and the compound scenarios only test a two-level hierarchy.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Symmetric capability.",
+     "b"
+    ],
+    [
+     " The same Phi-3-mini instance plays both roles, so the Actor could not generate adversarially sophisticated intents tailored to a small evaluator’s specific weaknesses. A frontier-model Actor paired with an edge-model Firewall is a materially harder problem, and we did not run it. Our adversarial scenarios therefore sample the attack space from outside rather than adapting to the defender, which likely makes them easier than a real adversary’s.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Single model, single size.",
+     "b"
+    ],
+    [
+     " Every result is from one 3.8B quantized model. We cannot say whether the observed failure pattern is a property of the architecture, the parameter count, or 4-bit quantization, because we ran no ablation across sizes or precisions.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Run-to-run variance.",
+     "b"
+    ],
+    [
+     " The headline evaluation is one pass per scenario per condition, and we replicated a 200-scenario subset to measure how stable a single pass is. Decoding was greedy throughout (temperature 0, top-",
+     null
+    ],
+    [
+     "k",
+     null
+    ],
+    [
+     " 1, fixed seed), so disagreement between two identical runs comes from floating-point non-determinism in the GPU kernels rather than from sampling. Verdict agreement across the 200 replicated scenarios is 100.0% for JSON-only, 93.5% for free-form, and 90.5% for structured CoT, with rule agreement of 97.5% for the proposed method. The terse condition is bit-stable and the two conditions that generate long outputs are not. Roughly one verdict in ten under the proposed method changes between identical runs, so the accuracies in Section ",
+     null
+    ],
+    [
+     "Section V",
+     null
+    ],
+    [
+     " carry a variance of that order and should not be read as exact values. It also means the proposed method is less reproducible than the baseline it improves on, which is an operational drawback independent of how accurate the accuracy is.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Confidence scores are self-reported.",
+     "b"
+    ],
+    [
+     " The ",
+     null
+    ],
+    [
+     "confidence_score",
+     "tt"
+    ],
+    [
+     " field is generated by the same forward pass as the decision and is not calibrated against anything. Our analysis treats it as a decision input rather than as a probability. The observation in Section ",
+     null
+    ],
+    [
+     "Section V",
+     null
+    ],
+    [
+     " that scores are sometimes generated from mistaken premises undercuts any temptation to read them as calibrated.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "No measured cloud baseline.",
+     "b"
+    ],
+    [
+     " We report local latency but did not measure a hosted-endpoint comparison arm. Claims about the relative speed of edge versus cloud evaluation are therefore out of scope for this paper.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Simulated execution.",
+     "b"
+    ],
+    [
+     " No action was actually executed. The pipeline is a simulation and the DENY/FLAG/ACCEPT verdicts were recorded rather than enforced, which means we did not exercise failure paths such as a Firewall crash mid-runbook or a partial execution followed by a denial.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Threat model coverage.",
+     "b"
+    ],
+    [
+     " Category (ii) in Section ",
+     null
+    ],
+    [
+     "Section III",
+     null
+    ],
+    [
+     ", a compromised or deliberately hostile Actor, was not evaluated. The firewall’s behaviour when the component feeding it is adversarial by construction is untested here.",
+     null
+    ]
+   ]
+  ],
+  [
+   "h1",
+   [
+    [
+     "Conclusion and Future Work",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "Access-control mechanisms built for human actors answer who is making a request. They have no machinery for the question that matters once software agents execute: what does this action mean, and should it proceed. This paper described a localized LLM agent firewall that addresses part of that gap without a cloud dependency, using a structured Chain-of-Thought JSON schema to force a 3.8B edge model to commit to a governing rule and an explicit reasoning trace before emitting a decision, all within a 4.2 GiB VRAM ceiling.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "We then ran the evaluation rather than describing it. Across 600 scenarios and 1,800 generations on the model itself, the structured schema raised decision accuracy from 52.3% to 66.3% over a JSON-only baseline and cut approvals of hard-denial actions from 71 to 6. It also approved 6 irreversible actions and was more permissive than unconstrained free-form on ambiguous proposals that should have reached a human. Neither rate is one we would accept in a control whose purpose is to prevent operations that cannot be undone. The honest reading is that an edge model of this size can serve as one layer in a defence-in-depth stack, and that it should not be the only thing standing between an autonomous agent and a production system.",
+     null
+    ]
+   ]
+  ],
+  [
+   "p",
+   [
+    [
+     "The immediate next steps follow from the limitations. First, replicate on an externally authored injection benchmark, since our corpus was written by the same people who wrote the method. Second, run the pipeline with a frontier Actor against the edge Firewall, which is the threat model that matters. Third, quantify run-to-run variance with repeated passes so that reported accuracies carry an honest error bar, and replace the self-reported confidence field with something that carries signal, since ours did not. Fourth, measure a hosted-endpoint arm so that the latency comparison becomes a measurement rather than an argument. The corpus generator, the evaluation harness, the raw per-scenario outputs, and the analysis scripts are released alongside this paper. Because the corpus is fixed by a published seed and the generator asserts every marginal before writing, the label distribution in Table ",
+     null
+    ],
+    [
+     "Table III",
+     null
+    ],
+    [
+     " is reproducible without re-running the model.",
+     null
+    ]
+   ]
+  ]
+ ],
+ "references": [
+  {
+   "key": "brown2020",
+   "runs": [
+    [
+     "T. B. Brown ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Language models are few-shot learners,” in ",
+     null
+    ],
+    [
+     "Advances in Neural Information Processing Systems",
+     "i"
+    ],
+    [
+     ", vol. 33, 2020, pp. 1877–1901.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "ouyang2022",
+   "runs": [
+    [
+     "L. Ouyang ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Training language models to follow instructions with human feedback,” in ",
+     null
+    ],
+    [
+     "Advances in Neural Information Processing Systems",
+     "i"
+    ],
+    [
+     ", vol. 35, 2022, pp. 27730–27744.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "schick2023",
+   "runs": [
+    [
+     "T. Schick ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Toolformer: Language models can teach themselves to use tools,” in ",
+     null
+    ],
+    [
+     "Advances in Neural Information Processing Systems",
+     "i"
+    ],
+    [
+     ", vol. 36, 2023, pp. 68539–68551.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "yao2023",
+   "runs": [
+    [
+     "S. Yao ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “ReAct: Synergizing reasoning and acting in language models,” in ",
+     null
+    ],
+    [
+     "Proc. Int. Conf. on Learning Representations (ICLR)",
+     "i"
+    ],
+    [
+     ", 2023.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "wu2023",
+   "runs": [
+    [
+     "Q. Wu ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “AutoGen: Enabling next-gen LLM applications via multi-agent conversation,” arXiv:2308.08155, 2023.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "park2023",
+   "runs": [
+    [
+     "J. S. Park ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Generative agents: Interactive simulacra of human behavior,” in ",
+     null
+    ],
+    [
+     "Proc. 36th Annual ACM Symposium on User Interface Software and Technology",
+     "i"
+    ],
+    [
+     ", 2023, pp. 1–22.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "greshake2023",
+   "runs": [
+    [
+     "K. Greshake ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Not what you’ve signed up for: Compromising real-world LLM-integrated applications with indirect prompt injection,” in ",
+     null
+    ],
+    [
+     "Proc. 16th ACM Workshop on Artificial Intelligence and Security",
+     "i"
+    ],
+    [
+     ", 2023, pp. 79–90.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "cemri2025",
+   "runs": [
+    [
+     "M. Cemri ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Why do multi-agent LLM systems fail?” arXiv:2503.13657, 2025.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "inan2023",
+   "runs": [
+    [
+     "H. Inan ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Llama Guard: LLM-based input-output safeguard for human-AI conversations,” arXiv:2312.06674, 2023.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "zeng2024",
+   "runs": [
+    [
+     "W. Zeng ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “ShieldGemma: Generative AI content moderation based on Gemma,” arXiv:2407.21772, 2024.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "rebedea2023",
+   "runs": [
+    [
+     "T. Rebedea ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “NeMo Guardrails: A toolkit for controllable and safe LLM applications with programmable rails,” arXiv:2310.10501, 2023.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "zheng2023",
+   "runs": [
+    [
+     "L. Zheng ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Judging LLM-as-a-judge with MT-Bench and Chatbot Arena,” in ",
+     null
+    ],
+    [
+     "Advances in Neural Information Processing Systems",
+     "i"
+    ],
+    [
+     ", vol. 36, 2023, pp. 46595–46608.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "brundage2020",
+   "runs": [
+    [
+     "M. Brundage ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Toward trustworthy AI development: Mechanisms for supporting verifiable claims,” arXiv:2004.07213, 2020.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "debenedetti2024",
+   "runs": [
+    [
+     "E. Debenedetti ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “AgentDojo: A dynamic environment to evaluate prompt injection attacks and defenses for LLM agents,” arXiv:2406.13352, 2024.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "zhan2024",
+   "runs": [
+    [
+     "Q. Zhan ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “InjecAgent: Benchmarking indirect prompt injections in tool-integrated large language model agents,” arXiv:2403.02691, 2024.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "evtimov2025",
+   "runs": [
+    [
+     "I. Evtimov ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “WASP: Benchmarking web agent security against prompt injection attacks,” arXiv:2504.18575, 2025.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "zhang2025asb",
+   "runs": [
+    [
+     "H. Zhang ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Agent Security Bench (ASB): Formalizing and benchmarking attacks and defenses in LLM-based agents,” in ",
+     null
+    ],
+    [
+     "Proc. Int. Conf. on Learning Representations (ICLR)",
+     "i"
+    ],
+    [
+     ", 2025.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "ruan2023",
+   "runs": [
+    [
+     "Y. Ruan ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Identifying the risks of LM agents with an LM-emulated sandbox,” arXiv:2309.15817, 2023.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "debenedetti2025",
+   "runs": [
+    [
+     "E. Debenedetti ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Defeating prompt injections by design,” arXiv:2503.18813, 2025.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "shi2025",
+   "runs": [
+    [
+     "T. Shi ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Progent: Programmable privilege control for LLM agents,” arXiv:2504.11703, 2025.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "wallace2024",
+   "runs": [
+    [
+     "E. Wallace ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “The instruction hierarchy: Training LLMs to prioritize privileged instructions,” arXiv:2404.13208, 2024.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "hines2024",
+   "runs": [
+    [
+     "K. Hines ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Defending against indirect prompt injection attacks with spotlighting,” arXiv:2403.14720, 2024.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "touvron2023",
+   "runs": [
+    [
+     "H. Touvron ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “LLaMA: Open and efficient foundation language models,” arXiv:2302.13971, 2023.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "abdin2024",
+   "runs": [
+    [
+     "M. Abdin ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Phi-3 technical report: A highly capable language model locally on your phone,” arXiv:2404.14219, 2024.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "ma2024",
+   "runs": [
+    [
+     "S. Ma ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “The era of 1-bit LLMs: All large language models are in 1.58 bits,” arXiv:2402.17764, 2024.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "zhou2023",
+   "runs": [
+    [
+     "C. Zhou ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “LIMA: Less is more for alignment,” in ",
+     null
+    ],
+    [
+     "Advances in Neural Information Processing Systems",
+     "i"
+    ],
+    [
+     ", vol. 36, 2023, pp. 69176–69188.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "wei2022",
+   "runs": [
+    [
+     "J. Wei ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Chain-of-thought prompting elicits reasoning in large language models,” in ",
+     null
+    ],
+    [
+     "Advances in Neural Information Processing Systems",
+     "i"
+    ],
+    [
+     ", vol. 35, 2022, pp. 24824–24837.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "wang2023",
+   "runs": [
+    [
+     "X. Wang ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Self-consistency improves chain of thought reasoning in language models,” in ",
+     null
+    ],
+    [
+     "Proc. Int. Conf. on Learning Representations (ICLR)",
+     "i"
+    ],
+    [
+     ", 2023.",
+     null
+    ]
+   ]
+  },
+  {
+   "key": "shinn2023",
+   "runs": [
+    [
+     "N. Shinn ",
+     null
+    ],
+    [
+     "et al.",
+     "i"
+    ],
+    [
+     ", “Reflexion: Language agents with verbal reinforcement learning,” in ",
+     null
+    ],
+    [
+     "Advances in Neural Information Processing Systems",
+     "i"
+    ],
+    [
+     ", vol. 36, 2023, pp. 8634–8652.",
+     null
+    ]
+   ]
+  }
+ ],
+ "counts": {
+  "tables": 6,
+  "figures": 3,
+  "equations": 1
+ }
+}

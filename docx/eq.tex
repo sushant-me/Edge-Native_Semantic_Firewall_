@@ -1,0 +1,15 @@
+\documentclass[border=1pt]{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\setmainfont{TeXGyreTermesX}
+\usepackage{newtxmath}
+\begin{document}
+$\displaystyle
+D(a) =
+\begin{cases}
+\text{DENY} & R(a) = A\\[2pt]
+\text{ACCEPT} & R(a) \in \{B,C\} \;\wedge\; C_s \ge \theta_{R(a)}\\[2pt]
+\text{FLAG} & \text{otherwise}
+\end{cases}
+$
+\end{document}
