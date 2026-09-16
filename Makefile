@@ -11,7 +11,7 @@ MODEL   ?= phi3-mini-firewall
 GGUF    ?= Phi-3-mini-4k-instruct-q4.gguf
 GGUF_URL:= https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf
 
-.PHONY: help model serve corpus eval ablation replicate analyze figures paper paper-single all clean distclean
+.PHONY: help model serve corpus eval ablation replicate analyze figures paper paper-single verify all clean distclean
 
 help:
 	@echo "Targets"
@@ -24,6 +24,7 @@ help:
 	@echo "  analyze    metrics, tables and figures       -> results/"
 	@echo "  paper      regenerate LaTeX macros and compile the two-column PDF"
 	@echo "  paper-single  compile the single-column Times version"
+	@echo "  verify     check the committed corpus and metrics reproduce"
 	@echo "  all        analyze + paper, from the committed raw outputs"
 	@echo "  clean      remove LaTeX build artefacts"
 
@@ -62,6 +63,12 @@ paper: analyze
 paper-single: analyze
 	$(PY) src/make_macros.py --metrics results/metrics.json --outdir paper
 	cd paper && tectonic -X compile main_singlecolumn.tex
+
+# Falsifies the two reproducibility claims in the paper: that the corpus
+# follows from SEED=42 in src/corpus.py, and that every reported number
+# follows from the committed raw outputs.  No GPU required.
+verify:
+	$(PY) src/verify_reproducibility.py
 
 all: paper
 

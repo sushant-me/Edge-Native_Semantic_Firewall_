@@ -1,0 +1,56 @@
+# Falsifies the two reproducibility claims the paper makes about its own
+# artifacts, on every push and weekly:
+#
+#   1. data/corpus.jsonl is exactly what src/corpus.py writes from SEED=42.
+#      Ground-truth labels follow from the policy by construction, so the
+#      committed corpus must be regenerable — not merely asserted to be.
+#
+#   2. results/metrics.json is exactly what src/analyze.py derives from the
+#      committed results/*.jsonl.
+#
+# The 3,000 model generations are committed under results/, so both checks run
+# on a stock runner with no GPU and no model download.
+name: reproducibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly: catches drift from a dependency or Python-version change rather
+    # than from an edit to this repository.
+    - cron: "17 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install analysis dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Only the analysis step needs these; the corpus generator is
+          # standard library only, which is why it can be checked on its own.
+          python -m pip install "matplotlib>=3.8"
+
+      - name: Corpus reproduces from the committed seed
+        run: python src/verify_reproducibility.py --only corpus
+
+      - name: Reported metrics reproduce from the committed raw outputs
+        run: python src/verify_reproducibility.py --only metrics
+
+      - name: Both properties together (what `make verify` runs)
+        run: make verify

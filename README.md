@@ -5,6 +5,8 @@
 Sushant Poudel · Rakhee Pandey · Aashika Pandey
 Department of Computer Science and Engineering, Nepal Engineering College, Bhaktapur, Nepal
 
+[![reproducibility](https://github.com/sushant-me/Edge-Native_Semantic_Firewall_/actions/workflows/reproducibility.yml/badge.svg)](https://github.com/sushant-me/Edge-Native_Semantic_Firewall_/actions/workflows/reproducibility.yml)
+
 ---
 
 An autonomous agent that executes actions rather than proposing them sits outside the reach of
@@ -67,6 +69,30 @@ defence-in-depth stack, and that the evidence does not support using it as a sol
 
 ---
 
+## Checking the numbers yourself
+
+The two claims above that a reader can most reasonably doubt are both mechanical, so
+both are checked in CI on every push rather than left to trust:
+
+```bash
+make verify          # no GPU, no model download
+```
+
+1. **The corpus follows from the seed.** `data/corpus.jsonl` is regenerated from
+   `src/corpus.py` at `SEED = 42` and compared byte-for-byte. This is the claim that
+   labels follow from the policy *by construction* rather than from a keyword scorer
+   run over the text — if that were untrue, the committed corpus would not reproduce.
+2. **Every reported number follows from the committed outputs.** `results/metrics.json`
+   is recomputed by `src/analyze.py` from the committed `results/*.jsonl` and compared
+   field-by-field.
+
+The 3,000 generations are committed under `results/`, so neither check needs the model.
+Both are also exercised negatively — a single altered `expected_decision` and a single
+altered metric were each confirmed to fail the check rather than pass it — because a
+verification step that cannot fail is not a verification step.
+
+---
+
 ## Repository layout
 
 ```
@@ -87,6 +113,7 @@ src/
   analyze.py                  metrics, markdown tables, vector figures
   variance.py                 run-to-run agreement between two passes
   make_macros.py              metrics.json -> LaTeX macros
+  verify_reproducibility.py   checks both claims above (make verify)
   examples.py                 pulls qualitative failure traces
   Modelfile                   Ollama model definition (num_ctx 4096, temp 0)
 data/
