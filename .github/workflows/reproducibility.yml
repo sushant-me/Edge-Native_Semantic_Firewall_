@@ -1,4 +1,4 @@
-# Falsifies the two reproducibility claims the paper makes about its own
+# Falsifies the three reproducibility claims the paper makes about its own
 # artifacts, on every push and weekly:
 #
 #   1. data/corpus.jsonl is exactly what src/corpus.py writes from SEED=42.
@@ -8,7 +8,11 @@
 #   2. results/metrics.json is exactly what src/analyze.py derives from the
 #      committed results/*.jsonl.
 #
-# The 3,000 model generations are committed under results/, so both checks run
+#   3. Every manuscript macro is derived from those metrics, except the recorded
+#      hardware measurements declared in KNOWN_RECORDED_MACROS. A new constant
+#      fails the build rather than slipping into the paper unexamined.
+#
+# The 3,000 model generations are committed under results/, so the checks run
 # on a stock runner with no GPU and no model download.
 name: reproducibility
 
@@ -52,5 +56,8 @@ jobs:
       - name: Reported metrics reproduce from the committed raw outputs
         run: python src/verify_reproducibility.py --only metrics
 
-      - name: Both properties together (what `make verify` runs)
+      - name: No undeclared constants in the manuscript macros
+        run: python src/verify_reproducibility.py --only macros
+
+      - name: All checks together (what `make verify` runs)
         run: make verify
