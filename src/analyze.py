@@ -19,10 +19,12 @@ import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+# matplotlib is imported lazily, inside the figure functions below, and is not
+# needed to compute any metric. `make verify` runs this module to recompute
+# results/metrics.json from the committed outputs, so a hard import here made the
+# reproducibility check -- the thing that establishes the numbers can be trusted
+# -- depend on a plotting library it never calls. On a clean clone that failed
+# with ModuleNotFoundError before the check had run.
 
 CONDITIONS = ["naive", "zeroshot", "cot"]
 CLABEL = {
@@ -32,24 +34,42 @@ CLABEL = {
 }
 DECISIONS = ["ACCEPT", "DENY", "FLAG"]
 
-plt.rcParams.update(
-    {
-        "font.family": "serif",
-        "font.serif": ["DejaVu Serif"],
-        "font.size": 8,
-        "axes.labelsize": 8,
-        "axes.titlesize": 8,
-        "legend.fontsize": 7,
-        "xtick.labelsize": 7,
-        "ytick.labelsize": 7,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "grid.linewidth": 0.4,
-        "figure.dpi": 300,
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.02,
-    }
-)
+_PLT = None
+
+
+def _pyplot():
+    """Import matplotlib on first use and return pyplot.
+
+    Only the figure functions need it; every metric is computed from the
+    committed JSONL with the standard library alone.
+    """
+    global _PLT
+    if _PLT is None:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        plt.rcParams.update(
+            {
+                "font.family": "serif",
+                "font.serif": ["DejaVu Serif"],
+                "font.size": 8,
+                "axes.labelsize": 8,
+                "axes.titlesize": 8,
+                "legend.fontsize": 7,
+                "xtick.labelsize": 7,
+                "ytick.labelsize": 7,
+                "axes.grid": True,
+                "grid.alpha": 0.25,
+                "grid.linewidth": 0.4,
+                "figure.dpi": 300,
+                "savefig.bbox": "tight",
+                "savefig.pad_inches": 0.02,
+            }
+        )
+        _PLT = plt
+    return _PLT
 
 
 def load(paths):
@@ -262,6 +282,7 @@ def summarize(recs):
 
 
 def fig_composition(corpus, outdir):
+    plt = _pyplot()
     rules, tags = Counter(), Counter()
     tech = Counter()
     for s in corpus:
@@ -303,6 +324,7 @@ def fig_composition(corpus, outdir):
 
 
 def fig_accuracy(metrics, outdir):
+    plt = _pyplot()
     conds = [c for c in CONDITIONS if c in metrics]
     fig, axes = plt.subplots(1, 3, figsize=(7.0, 2.2))
 
@@ -352,6 +374,7 @@ def fig_accuracy(metrics, outdir):
 
 
 def fig_confusion(metrics, outdir):
+    plt = _pyplot()
     conds = [c for c in CONDITIONS if c in metrics]
     fig, axes = plt.subplots(1, len(conds), figsize=(2.2 * len(conds), 2.2), squeeze=False)
     axes = axes[0]
@@ -380,6 +403,7 @@ def fig_confusion(metrics, outdir):
 
 
 def fig_adversarial(metrics, outdir):
+    plt = _pyplot()
     conds = [c for c in CONDITIONS if c in metrics]
     techs = sorted({t for c in conds for t in metrics[c]["per_technique"]})
     fig, ax = plt.subplots(figsize=(4.6, 1.95))
@@ -399,6 +423,7 @@ def fig_adversarial(metrics, outdir):
 
 
 def fig_latency(metrics, outdir):
+    plt = _pyplot()
     conds = [c for c in CONDITIONS if c in metrics]
     fig, ax = plt.subplots(figsize=(3.4, 2.1))
     vals = [metrics[c]["latency_median_s"] for c in conds]
@@ -489,6 +514,16 @@ def main():
     ap.add_argument("--results", nargs="+", default=["results/results_p1.jsonl"])
     ap.add_argument("--corpus", default="data/corpus.jsonl")
     ap.add_argument("--outdir", default="results")
+    ap.add_argument(
+        "--no-figs",
+        action="store_true",
+        help=(
+            "skip figure generation. Every metric is computed with the standard "
+            "library; only the figures need matplotlib. The reproducibility check "
+            "passes this so that `make verify` runs on a clean clone with no "
+            "third-party packages installed."
+        ),
+    )
     ap.add_argument("--replication", nargs=2, default=None,
                     metavar=("PASS_A", "PASS_B"))
     args = ap.parse_args()
@@ -522,14 +557,21 @@ def main():
         metrics["_replication"] = replication(*args.replication)
     (outdir / "metrics.json").write_text(json.dumps(metrics, indent=2))
 
-    corpus = [json.loads(l) for l in Path(args.corpus).read_text().splitlines() if l.strip()]
-    fig_composition(corpus, figs)
-    fig_accuracy(metrics, figs)
-    fig_confusion(metrics, figs)
-    fig_adversarial(metrics, figs)
-    fig_latency(metrics, figs)
     markdown(metrics, outdir)
-    print("wrote metrics.json, tables.md, figs/*")
+    if args.no_figs:
+        print("wrote metrics.json, tables.md (figures skipped: --no-figs)")
+    else:
+        corpus = [
+            json.loads(l)
+            for l in Path(args.corpus).read_text().splitlines()
+            if l.strip()
+        ]
+        fig_composition(corpus, figs)
+        fig_accuracy(metrics, figs)
+        fig_confusion(metrics, figs)
+        fig_adversarial(metrics, figs)
+        fig_latency(metrics, figs)
+        print("wrote metrics.json, tables.md, figs/*")
 
     for c in CONDITIONS:
         if c not in metrics:

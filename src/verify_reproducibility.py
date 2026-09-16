@@ -111,6 +111,10 @@ def check_metrics(tmp: Path) -> bool:
       '--corpus', 'data/corpus.jsonl',
       '--outdir', str(outdir),
       '--replication', 'results/results_p1.jsonl', 'results/results_p2.jsonl',
+      # No figures: they are the only part that needs a third-party package, and
+      # this check is about the numbers. Passing it keeps `make verify` runnable
+      # on a clean clone with nothing installed.
+      '--no-figs',
   ])
 
   committed = json.loads(

@@ -75,8 +75,14 @@ Three claims a reader can most reasonably doubt are all mechanical, so all three
 checked in CI on every push rather than left to trust:
 
 ```bash
-make verify          # no GPU, no model download
+make verify          # no GPU, no model download, nothing to install
 ```
+
+It needs **no third-party packages at all** — the three checks are computed from
+the committed JSONL with the standard library alone, and only the figures need
+matplotlib. CI proves this in a job that runs `make verify` on an interpreter with
+nothing installed, because the other CI job installs matplotlib and so hid the
+fact that this used to fail with `ModuleNotFoundError` on a clean clone.
 
 1. **The corpus follows from the seed.** `data/corpus.jsonl` is regenerated from
    `src/corpus.py` at `SEED = 42` and compared byte-for-byte. This is the claim that

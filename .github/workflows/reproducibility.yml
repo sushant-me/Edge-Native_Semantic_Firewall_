@@ -61,3 +61,45 @@ jobs:
 
       - name: All checks together (what `make verify` runs)
         run: make verify
+
+      - name: The figure pipeline still works when matplotlib is present
+        # `make verify` now passes --no-figs, so nothing above exercises the
+        # plotting path any more. Without this step the figure code could break
+        # silently: it is the half of analyze.py that the paper depends on.
+        run: |
+          python src/analyze.py \
+            --results results/results_p1.jsonl results/results_av.jsonl \
+            --corpus data/corpus.jsonl \
+            --outdir /tmp/figs \
+            --replication results/results_p1.jsonl results/results_p2.jsonl
+          test "$(ls /tmp/figs/figs/*.pdf | wc -l)" = "5" \
+            || { echo "expected 5 vector figures"; ls /tmp/figs/figs; exit 1; }
+          echo "5 figures regenerated"
+
+  verify-without-dependencies:
+    # The three checks are the reason the numbers can be trusted, so they should
+    # not depend on anything a reader has to install first. They are computed
+    # from the committed JSONL with the standard library alone; only the figures
+    # need matplotlib, and `make verify` skips those.
+    #
+    # This job exists because the check above installs matplotlib, which hid the
+    # fact that `make verify` failed with ModuleNotFoundError on a clean clone.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Nothing is installed beyond the interpreter
+        run: |
+          python -c "import matplotlib" 2>/dev/null && {
+            echo "matplotlib is present; this job is meant to prove it is not needed"
+            exit 1
+          }
+          echo "confirmed: no third-party packages available"
+      - name: make verify
+        run: make verify
