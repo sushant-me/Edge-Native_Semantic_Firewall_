@@ -33,6 +33,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Macros in the manuscript that are *recorded measurements* rather than values
+# computable from the committed generations. Peak device memory is an
+# observation about the machine, not a function of the model outputs, so it
+# cannot be derived - but it must not be joined by anything that could be.
+#
+# This list is a ratchet: the check below builds the macros twice from two
+# different metrics files and reports every macro that did not move. A new
+# constant therefore fails the build until it is either derived or added here
+# deliberately.
+KNOWN_RECORDED_MACROS = frozenset({"VRAMPeak"})
+
 
 def _run(args: list[str]) -> None:
   """Runs a build step, surfacing its output only when it fails."""
@@ -119,12 +130,83 @@ def check_metrics(tmp: Path) -> bool:
   return False
 
 
+def _macros_from(metrics_path: Path, outdir: Path) -> dict[str, str]:
+  """Generates results_macros.tex and parses it into {macro name: value}."""
+  outdir.mkdir(parents=True, exist_ok=True)
+  _run([
+      sys.executable, 'src/make_macros.py',
+      '--metrics', str(metrics_path), '--outdir', str(outdir),
+  ])
+  macros: dict[str, str] = {}
+  for line in (outdir / 'results_macros.tex').read_text().splitlines():
+    if not line.startswith('\\newcommand{'):
+      continue
+    name = line[len('\\newcommand{'):].split('}', 1)[0].lstrip('\\')
+    macros[name] = line.rsplit('}{', 1)[-1].rstrip('}')
+  return macros
+
+
+def _with_every_number_moved(value):
+  """Shifts every number in a metrics tree, leaving structure and strings alone."""
+  if isinstance(value, bool):
+    return value
+  if isinstance(value, (int, float)):
+    return value + 1
+  if isinstance(value, dict):
+    return {k: _with_every_number_moved(v) for k, v in value.items()}
+  if isinstance(value, list):
+    return [_with_every_number_moved(v) for v in value]
+  return value
+
+
+def check_macro_provenance(tmp: Path) -> bool:
+  """Reports which manuscript macros are not derived from the metrics.
+
+  The manuscript's numbers should move when the metrics move. Building the
+  macros twice - once from the real metrics, once from a copy with every number
+  shifted - and diffing the two identifies every macro that stayed put, which is
+  exactly the set that could not have come from the evidence.
+  """
+  real = json.loads(
+      (ROOT / 'results' / 'metrics.json').read_text(encoding='utf-8')
+  )
+  perturbed_path = tmp / 'metrics-shifted.json'
+  perturbed_path.write_text(
+      json.dumps(_with_every_number_moved(real)), encoding='utf-8'
+  )
+
+  real_macros = _macros_from(ROOT / 'results' / 'metrics.json', tmp / 'm-real')
+  moved_macros = _macros_from(perturbed_path, tmp / 'm-shifted')
+
+  shared = set(real_macros) & set(moved_macros)
+  fixed = {name for name in shared if real_macros[name] == moved_macros[name]}
+  new = fixed - KNOWN_RECORDED_MACROS
+  gone = KNOWN_RECORDED_MACROS - fixed
+
+  if not new and not gone:
+    listed = ', '.join(sorted(fixed)) or 'none'
+    print(f'  PASS  every macro derives from metrics.json '
+          f'({len(shared) - len(fixed)} derived); recorded constants '
+          f'declared: {listed}')
+    return True
+
+  print('  FAIL  the set of non-derived macros changed')
+  if new:
+    print(f'        new constant(s): {sorted(new)}')
+    print('        Either derive them from results/metrics.json, or add them')
+    print('        to KNOWN_RECORDED_MACROS with a note on where they came from.')
+  if gone:
+    print(f'        declared constant(s) now derived: {sorted(gone)}')
+    print('        Remove them from KNOWN_RECORDED_MACROS.')
+  return False
+
+
 def main() -> int:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       '--only',
-      choices=['corpus', 'metrics'],
-      help='run a single check instead of both',
+      choices=['corpus', 'metrics', 'macros'],
+      help='run a single check instead of all of them',
   )
   args = parser.parse_args()
 
@@ -136,6 +218,8 @@ def main() -> int:
       results.append(check_corpus(tmp))
     if args.only in (None, 'metrics'):
       results.append(check_metrics(tmp))
+    if args.only in (None, 'macros'):
+      results.append(check_macro_provenance(tmp))
 
   if all(results):
     print('OK: the committed artifacts reproduce from the committed sources.')

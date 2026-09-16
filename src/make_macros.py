@@ -45,6 +45,17 @@ def build(m):
     A("\\newcommand{\\NTrials}{%s{,}%03d}" % ((3 * m["cot"]["n_total"]) // 1000,
                                                (3 * m["cot"]["n_total"]) % 1000))
     A("\\newcommand{\\TRuleA}{%s}" % m["cot"]["per_rule"]["A"]["n"])
+    # Recorded measurement, not a derived value: peak device memory observed
+    # during the evaluation runs, in GiB. It cannot be computed from the
+    # generations, so it is written here rather than read from metrics.json.
+    # It is the ONLY macro in this file that does not come from the metrics;
+    # src/verify_reproducibility.py builds the macros twice from two different
+    # metrics files and fails if a second constant ever appears.
+    #
+    # NOTE: paper/response_to_reviewers.md reports the same measurement as
+    # "3,947 MiB". 3947 MiB is 3.85 GiB, not 3.95 GiB, so that sentence mixes
+    # the units - see the unit note there. Do not "fix" this number without
+    # resolving which of the two is the actual reading.
     A("\\newcommand{\\VRAMPeak}{3.95}")
     A("")
 

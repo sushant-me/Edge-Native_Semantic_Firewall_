@@ -24,7 +24,7 @@ help:
 	@echo "  analyze    metrics, tables and figures       -> results/"
 	@echo "  paper      regenerate LaTeX macros and compile the two-column PDF"
 	@echo "  paper-single  compile the single-column Times version"
-	@echo "  verify     check the committed corpus and metrics reproduce"
+	@echo "  verify     check the corpus, the metrics and macro provenance"
 	@echo "  all        analyze + paper, from the committed raw outputs"
 	@echo "  clean      remove LaTeX build artefacts"
 

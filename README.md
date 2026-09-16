@@ -71,8 +71,8 @@ defence-in-depth stack, and that the evidence does not support using it as a sol
 
 ## Checking the numbers yourself
 
-The two claims above that a reader can most reasonably doubt are both mechanical, so
-both are checked in CI on every push rather than left to trust:
+Three claims a reader can most reasonably doubt are all mechanical, so all three are
+checked in CI on every push rather than left to trust:
 
 ```bash
 make verify          # no GPU, no model download
@@ -82,14 +82,27 @@ make verify          # no GPU, no model download
    `src/corpus.py` at `SEED = 42` and compared byte-for-byte. This is the claim that
    labels follow from the policy *by construction* rather than from a keyword scorer
    run over the text — if that were untrue, the committed corpus would not reproduce.
-2. **Every reported number follows from the committed outputs.** `results/metrics.json`
+2. **Every derived number follows from the committed outputs.** `results/metrics.json`
    is recomputed by `src/analyze.py` from the committed `results/*.jsonl` and compared
    field-by-field.
+3. **Nothing in the manuscript is an undeclared constant.** `src/make_macros.py` is run
+   twice — once from the real metrics, once from a copy with every number shifted by
+   one — and every macro that did not move is reported. Today that set is exactly
+   `{VRAMPeak}`: peak device memory is an observation about the machine, not a
+   function of the generations, so it cannot be derived. A second such constant fails
+   the build until it is either derived or declared.
 
-The 3,000 generations are committed under `results/`, so neither check needs the model.
-Both are also exercised negatively — a single altered `expected_decision` and a single
-altered metric were each confirmed to fail the check rather than pass it — because a
-verification step that cannot fail is not a verification step.
+The 3,000 generations are committed under `results/`, so none of the checks needs the
+model. All three are exercised negatively — a single altered `expected_decision`, a
+single altered metric, and a single added constant were each confirmed to fail the
+check rather than pass it — because a verification step that cannot fail is not a
+verification step.
+
+**One open unit question.** `\VRAMPeak` is `3.95`, and
+`paper/response_to_reviewers.md` reports the same measurement as "3,947 MiB".
+3947 MiB is 3.85 GiB, so one of those two is in the wrong unit. The figure is left
+as published rather than guessed at — settling it needs the original reading, not a
+recomputation.
 
 ---
 
