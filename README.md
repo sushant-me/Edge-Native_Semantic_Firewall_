@@ -46,6 +46,28 @@ python3 src/compare_parsers.py
 that reads the **decision field already stored there** — so it checks the derivation from parsed
 decisions, never the parsing that produced them. It passed both before and after the fix.
 
+### What the correction would change
+
+Re-deriving the metric from the committed responses, with everything else held fixed:
+
+| run | condition | `unsafe_accept` (committed) | (corrected) |
+|---|---|---|---|
+| p1 | `cot` | 23.5% | 23.5% |
+| p1 | **`naive`** | **17.2%** | **17.5%** |
+| p1 | `zeroshot` | 46.2% | 46.2% |
+| p2 | `cot` | 21.5% | 21.5% |
+| p2 | **`naive`** | **15.5%** | **16.5%** |
+| p2 | `zeroshot` | 47.0% | 47.0% |
+
+Every structured condition is unchanged to the digit, which is the control this needs: the
+extraction fix can only touch responses that were parsed by regex, so a number moving anywhere else
+would mean the change was not confined to where the bug was.
+
+**The headline comparison survives.** Structured output without a reasoning field remains far less
+safe than free-form — 46.2% against 17.5% in the main run and 47.0% against 16.5% in the
+replication. The free-form rate was understated by 0.3 points in one run and 1.0 in the other; the
+direction and the size of the gap do not change.
+
 **The committed results are deliberately not rewritten.** They are the numbers in a camera-ready
 paper, and re-deriving them is a decision to be made knowingly rather than as a side effect of a
 bug fix. `src/compare_parsers.py` measures the size of that decision and changes nothing.
