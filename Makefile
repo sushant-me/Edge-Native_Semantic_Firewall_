@@ -11,7 +11,7 @@ MODEL   ?= phi3-mini-firewall
 GGUF    ?= Phi-3-mini-4k-instruct-q4.gguf
 GGUF_URL:= https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf
 
-.PHONY: help model serve corpus eval ablation replicate analyze figures paper paper-single verify all clean distclean
+.PHONY: help model serve corpus eval ablation replicate analyze figures paper paper-single verify supplement all clean distclean
 
 help:
 	@echo "Targets"
@@ -24,7 +24,8 @@ help:
 	@echo "  analyze    metrics, tables and figures       -> results/"
 	@echo "  paper      regenerate LaTeX macros and compile the two-column PDF"
 	@echo "  paper-single  compile the single-column Times version"
-	@echo "  verify     check the corpus, the metrics and macro provenance"
+	@echo "  verify     re-derive the corpus, metrics, macro provenance and tables"
+	@echo "  supplement build the supplementary document (needs: pip install markdown)"
 	@echo "  all        analyze + paper, from the committed raw outputs"
 	@echo "  clean      remove LaTeX build artefacts"
 
@@ -69,6 +70,14 @@ paper-single: analyze
 # follows from the committed raw outputs.  No GPU required.
 verify:
 	$(PY) src/verify_reproducibility.py
+
+# Builds the supplementary document from the committed artifacts. The
+# reproducibility block inside it is this repository's own checker, run at
+# build time, so the supplement cannot describe a different revision than
+# the one it was generated from. Needs the `markdown` package:
+#   pip install markdown && make supplement
+supplement:
+	$(PY) docs/build_supplement.py --pdf
 
 all: paper
 

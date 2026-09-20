@@ -440,12 +440,24 @@ def fig_latency(metrics, outdir):
     plt.close(fig)
 
 
+def _table_head(cells):
+    """Header row and its delimiter row, with the delimiter derived from the header.
+
+    The delimiter used to be written out by hand as `"|---|" + "---|" * len(conds)`,
+    which is correct only for a header of `1 + len(conds)` cells. Three of the five
+    tables prepend an extra column (`| Rule | n | ...`), so their delimiter was one
+    cell short. GitHub renders that anyway; strict Markdown parsers do not, so the
+    tables were malformed in `results/tables.md` and silently dropped when the file
+    was converted. Counting the header is the fix that cannot drift.
+    """
+    return ["| " + " | ".join(cells) + " |", "|" + "---|" * len(cells)]
+
+
 def markdown(metrics, outdir):
     conds = [c for c in CONDITIONS if c in metrics]
     L = []
     L.append("## Table: headline metrics\n")
-    L.append("| Metric | " + " | ".join(CLABEL[c] for c in conds) + " |")
-    L.append("|---|" + "---|" * len(conds))
+    L.extend(_table_head(["Metric"] + [CLABEL[c] for c in conds]))
     rows = [
         ("Scenarios", "n_total"),
         ("Parsed to a verdict", "n_parsed"),
@@ -469,23 +481,20 @@ def markdown(metrics, outdir):
         L.append(f"| {name} | " + " | ".join(str(metrics[c].get(key, "-")) for c in conds) + " |")
 
     L.append("\n## Table: per-rule decision accuracy (%)\n")
-    L.append("| Rule | n | " + " | ".join(CLABEL[c] for c in conds) + " |")
-    L.append("|---|" + "---|" * len(conds))
+    L.extend(_table_head(["Rule", "n"] + [CLABEL[c] for c in conds]))
     for r in "ABC":
         n = metrics[conds[0]]["per_rule"][r]["n"]
         L.append(f"| {r} | {n} | " + " | ".join(
             str(metrics[c]["per_rule"][r]["decision_accuracy"]) for c in conds) + " |")
 
     L.append("\n## Table: per-rule attribution accuracy (%)\n")
-    L.append("| Rule | " + " | ".join(CLABEL[c] for c in conds) + " |")
-    L.append("|---|" + "---|" * len(conds))
+    L.extend(_table_head(["Rule"] + [CLABEL[c] for c in conds]))
     for r in "ABC":
         L.append(f"| {r} | " + " | ".join(
             str(metrics[c]["per_rule"][r]["rule_attribution_accuracy"]) for c in conds) + " |")
 
     L.append("\n## Table: by scenario type (%)\n")
-    L.append("| Type | n | " + " | ".join(CLABEL[c] for c in conds) + " |")
-    L.append("|---|" + "---|" * len(conds))
+    L.extend(_table_head(["Type", "n"] + [CLABEL[c] for c in conds]))
     for t in ("standard", "adversarial", "compound", "edge"):
         n = metrics[conds[0]]["per_tag"][t]["n"]
         L.append(f"| {t} | {n} | " + " | ".join(
@@ -493,8 +502,7 @@ def markdown(metrics, outdir):
 
     L.append("\n## Table: adversarial techniques (%)\n")
     techs = sorted({t for c in conds for t in metrics[c]["per_technique"]})
-    L.append("| Technique | n | " + " | ".join(CLABEL[c] for c in conds) + " |")
-    L.append("|---|" + "---|" * len(conds))
+    L.extend(_table_head(["Technique", "n"] + [CLABEL[c] for c in conds]))
     for t in techs:
         n = metrics[conds[0]]["per_technique"].get(t, {}).get("n", 0)
         L.append(f"| {t} | {n} | " + " | ".join(

@@ -5,7 +5,7 @@
 | Scenarios | 600 | 600 | 600 |
 | Parsed to a verdict | 600 | 600 | 599 |
 | Decision accuracy (%) | 64.5 | 52.3 | 66.3 |
-| Decision accuracy 95% CI | (60.6, 68.2) | (48.3, 56.3) | (62.4, 69.9) |
+| Decision accuracy 95% CI | [60.6, 68.2] | [48.3, 56.3] | [62.4, 69.9] |
 | Rule attribution accuracy (%) | 81.2 | 80.3 | 86.5 |
 | Unsafe ACCEPT (count) | 103 | 277 | 141 |
 | Unsafe ACCEPT (%) | 17.2 | 46.2 | 23.5 |
@@ -21,7 +21,7 @@
 ## Table: per-rule decision accuracy (%)
 
 | Rule | n | Free-form | JSON, no CoT | Structured CoT |
-|---|---|---|---|
+|---|---|---|---|---|
 | A | 208 | 72.1 | 62.5 | 90.8 |
 | B | 202 | 59.4 | 54.5 | 59.9 |
 | C | 190 | 61.6 | 38.9 | 46.3 |
@@ -37,7 +37,7 @@
 ## Table: by scenario type (%)
 
 | Type | n | Free-form | JSON, no CoT | Structured CoT |
-|---|---|---|---|
+|---|---|---|---|---|
 | standard | 355 | 71.3 | 70.4 | 74.6 |
 | adversarial | 155 | 50.3 | 20.0 | 45.8 |
 | compound | 60 | 63.3 | 46.7 | 75.0 |
@@ -46,7 +46,7 @@
 ## Table: adversarial techniques (%)
 
 | Technique | n | Free-form | JSON, no CoT | Structured CoT |
-|---|---|---|---|
+|---|---|---|---|---|
 | authority_framing | 21 | 28.6 | 0.0 | 38.1 |
 | context_delimiter_spoof | 20 | 50.0 | 30.0 | 60.0 |
 | encoding_obfuscation | 20 | 50.0 | 30.0 | 55.0 |

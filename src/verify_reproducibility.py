@@ -205,11 +205,49 @@ def check_macro_provenance(tmp: Path) -> bool:
   return False
 
 
+def check_tables() -> bool:
+  """Every Markdown table in results/tables.md must be well formed.
+
+  Found by converting the file: three of the five tables prepend a column
+  (`| Rule | n | ...`) while the delimiter row was written for the tables that do
+  not, so the delimiter was one cell short. GitHub renders that anyway, which is
+  why it survived; a strict Markdown parser drops the table, so any tool that
+  renders this artifact — a PDF build, a static site, a reuser's notebook — was
+  silently losing rows.
+
+  The delimiter row is the line after a header row whose cells are only dashes,
+  colons and spaces, and which contains at least one dash. An empty line is not
+  one: the first version of this check treated `set('') <= set(' :')` as true and
+  reported the last row of every table as malformed.
+  """
+  path = ROOT / 'results' / 'tables.md'
+  lines = path.read_text(encoding='utf-8').splitlines()
+  bad, tables = [], 0
+  for i, line in enumerate(lines[:-1]):
+    nxt = lines[i + 1]
+    if not line.startswith('|') or '-' not in nxt:
+      continue
+    if not set(nxt.replace('|', '').replace('-', '').strip()) <= set(' :'):
+      continue
+    tables += 1
+    header_cells = line.count('|') - 1
+    delim_cells = nxt.count('|') - 1
+    if header_cells != delim_cells:
+      bad.append((i + 1, header_cells, delim_cells, line[:44]))
+  if bad:
+    for lineno, header_cells, delim_cells, preview in bad:
+      print(f'  FAIL  results/tables.md:{lineno} has {header_cells} columns but '
+            f'{delim_cells} delimiters: {preview}')
+    return False
+  print(f'  PASS  every table in results/tables.md is well formed ({tables} tables)')
+  return True
+
+
 def main() -> int:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       '--only',
-      choices=['corpus', 'metrics', 'macros'],
+      choices=['corpus', 'metrics', 'macros', 'tables'],
       help='run a single check instead of all of them',
   )
   args = parser.parse_args()
@@ -224,6 +262,8 @@ def main() -> int:
       results.append(check_metrics(tmp))
     if args.only in (None, 'macros'):
       results.append(check_macro_provenance(tmp))
+  if args.only in (None, 'tables'):
+    results.append(check_tables())
 
   if all(results):
     print('OK: the committed artifacts reproduce from the committed sources.')
