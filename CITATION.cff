@@ -1,12 +1,15 @@
 cff-version: 1.2.0
-message: "If you use this code, corpus, or results, please cite the paper."
-title: "Edge-Native Semantic Firewall for Autonomous LLM Agents: A Structured Chain-of-Thought Verification Framework"
-type: conference
+message: "If you use this code, corpus or results, please cite the paper below."
+title: "Edge-Native Semantic Firewall for Autonomous LLM Agents — code, corpus and raw outputs"
+type: software
 authors:
   - family-names: Poudel
     given-names: Sushant
     email: sushant.poudel2028@gmail.com
     affiliation: "Department of Computer Science and Engineering, Nepal Engineering College, Bhaktapur, Nepal"
+    # Register an ORCID iD and add it here — it is the one identifier that
+    # disambiguates this author from the other researchers of the same name:
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
   - family-names: Pandey
     given-names: Rakhee
     email: rakheepandey5712@gmail.com
@@ -15,20 +18,12 @@ authors:
     given-names: Aashika
     email: aashika100pandey@gmail.com
     affiliation: "Department of Computer Science and Engineering, Nepal Engineering College, Bhaktapur, Nepal"
-year: 2026
 abstract: >-
-  An autonomous agent that executes actions rather than proposing them sits outside the reach of
-  role-based access control, which authenticates an identity but has nothing to say about whether a
-  given action should happen. We evaluate whether a 3.8B-parameter Phi-3-mini model, 4-bit quantized
-  and held under a 4.2 GiB VRAM ceiling, can serve as that verification layer. A structured
-  Chain-of-Thought JSON schema requires the evaluator to name the governing policy rule and justify
-  the match before emitting a decision. On a 600-scenario corpus spanning three policy rules,
-  155 adversarial scenarios across eight prompt-injection techniques, 60 compound and 30 boundary
-  cases, we find that constraining the output format without requiring the reasoning step produces
-  the least safe evaluator of the three conditions tested, approving 46.2% of proposals the policy
-  would block or route to review. The full schema cuts that to 23.5% and raises hard-denial accuracy
-  from 62.5% to 90.8%, but still approves 6 of 208 irreversible actions. We conclude that a model of
-  this size can serve as one layer of a defence-in-depth stack, not as a sole control.
+  Code, evaluation corpus and raw model outputs for an edge-native semantic firewall: a
+  3.8B-parameter Phi-3-mini model, 4-bit quantized and held under a 4.2 GiB VRAM ceiling,
+  occupying the evaluator stage of a Generator-Evaluator pipeline on a single consumer
+  laptop. A structured Chain-of-Thought JSON schema requires the evaluator to name the
+  governing policy rule and justify the match before emitting a decision.
 keywords:
   - agentic AI security
   - edge inference
@@ -36,5 +31,25 @@ keywords:
   - Chain-of-Thought prompting
   - prompt injection
   - data sovereignty
-license: CC-BY-4.0
+license: MIT
 repository-code: "https://github.com/sushant-me/Edge-Native_Semantic_Firewall_"
+date-released: "2026-09-21"
+preferred-citation:
+  type: conference-paper
+  title: "Edge-Native Semantic Firewall for Autonomous LLM Agents: A Structured Chain-of-Thought Verification Framework"
+  authors:
+    - family-names: Poudel
+      given-names: Sushant
+    - family-names: Pandey
+      given-names: Rakhee
+    - family-names: Pandey
+      given-names: Aashika
+  year: 2026
+  url: "https://sushantpoudel2028.com.np/publications/firewall"
+  abstract: >-
+    On a 600-scenario corpus spanning three policy rules, 155 adversarial scenarios across
+    eight prompt-injection techniques, 60 compound and 30 boundary cases, constraining the
+    output format without requiring the reasoning step produces the least safe evaluator of
+    the three conditions tested, approving 46.2% of proposals the policy would block or route
+    to review. The full schema cuts that to 23.5% and raises hard-denial accuracy from 62.5%
+    to 90.8%, but still approves 6 of 208 irreversible actions.
